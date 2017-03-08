@@ -1,7 +1,7 @@
-Private version for ift3065 homework
-
 Typer
 =====
+
+Private version of Typer for ift3065 homework
 
 # How to build Typer
 
@@ -30,5 +30,3 @@ By default ocamlbuild creates a '_build' folder which holds all the compiled fil
 # Emacs files
 
     /typer-mode.el
-
-    test
