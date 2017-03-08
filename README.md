@@ -1,3 +1,4 @@
+Private version for ift3065 homework
 
 Typer
 =====
