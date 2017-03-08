@@ -31,3 +31,4 @@ By default ocamlbuild creates a '_build' folder which holds all the compiled fil
 
     /typer-mode.el
 
+    test
