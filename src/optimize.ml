@@ -6,19 +6,60 @@ module M = Myers
 
 let rec constant_folding (e : EL.elexp) = match e with
     | EL.Call (f, args) -> (match f,args with
+
+        (* fold e + 0 -> e *)
         | (EL.Var ((_, "_+_"), _),
             [expr; EL.Imm(Sexp.Integer(_,0))]) ->
-                expr
+                constant_folding expr
+
+        (* fold 0 + e -> e *)
         | (EL.Var ((_, "_+_"), _), 
             [ EL.Imm(Sexp.Integer(_,0)); expr]) ->
-                expr
+                constant_folding expr
+  
+        (* fold e - 0 -> e *)
+        | (EL.Var ((_, "_-_"), _),
+            [expr; EL.Imm(Sexp.Integer(_,0))]) ->
+                constant_folding expr
+
+        (* fold 1*e -> e *)
+        | (EL.Var ((_, "_*_"), _), 
+            [ EL.Imm(Sexp.Integer(_,1)); expr]) ->
+                constant_folding expr
+
+        (* fold e*1 -> e *)
+        | (EL.Var ((_, "_*_"), _), 
+            [ expr; EL.Imm(Sexp.Integer(_,1)) ]) ->
+                constant_folding expr
+
+        (* fold e/1 -> e *)
+        | (EL.Var ((_, "_/_"), _), 
+            [ expr; EL.Imm(Sexp.Integer(_,1)) ]) ->
+                constant_folding expr
+                
+        (* fold a + b -> (a + b)  *)
         | EL.Var ((_, "_+_"), _),
             [EL.Imm(Sexp.Integer(_, num1));
              EL.Imm(Sexp.Integer(_, num2))] ->
                  EL.Imm(Sexp.Integer(Util.dummy_location, num1 + num2))
         | (_, _) -> e)
+
     | EL.Lambda (vname, expr) -> 
             EL.Lambda (vname, constant_folding expr)
+
+    | EL.Let (loc, name_exp_list, body) ->
+        EL.Let (loc, 
+            List.map (fun (n, e) -> (n, constant_folding e)) name_exp_list,
+            constant_folding body)
+
+    | EL.Case (l, e, branches, default) ->
+            EL.Case(l, constant_folding e,
+            Util.SMap.map 
+                (fun (loc, li, e) -> (loc, li, constant_folding e)) branches,
+            (match default with
+                | None -> None
+                | Some (n, e) -> Some (n, constant_folding e)))
+
     | _ -> e
 
 (* Vous recevez:
@@ -41,16 +82,6 @@ let optimize (ctx : (string option * (EN.value_type ref)) M.myers)
   = constant_folding e
 
                 
-(*
-let rec constant_folding (e : EL.elexp) = match e with
-    | EL.Call (EL.Var ((_, "_+_"), _),
-            [expr; EL.Imm(Sexp.Integer(_,0))]) 
-        -> expr
-    | EL.Lambda (vname, expr) -> 
-            EL.Lambda (vname, constant_folding expr)
-    | _ -> e
-*)
-
 (* partie du inlining incomplete
 (* return value of an element in the context by its name *)
 let getListElement ctx name =
