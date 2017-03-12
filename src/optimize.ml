@@ -62,6 +62,27 @@ let rec constant_folding (e : EL.elexp) = match e with
 
     | _ -> e
 
+
+
+let rec constant_propagation (ctx : (string option * (EN.value_type ref)) M.myers)
+                             (e : EL.elexp) 
+        : EL.elexp
+    = match e with
+        | EL.Var ((loc, varname), dbi) -> 
+                (match M.find (fun (s, _) -> s = Some varname) ctx with
+                    | None            -> e
+                    | Some (_, value) -> (match !value with
+                        | EN.Vint i    -> EL.Imm(Sexp.Integer (Util.dummy_location, i))
+                        | EN.Vstring s -> EL.Imm(Sexp.String (Util.dummy_location, s))
+                        | EN.Vfloat f  -> EL.Imm(Sexp.Float (Util.dummy_location,f))
+                        | _ -> e))
+                        
+
+        | EL.Call (f, args) -> EL.Call (constant_propagation ctx f,
+                                        List.map (constant_propagation ctx) args)
+        (* TODO *)
+        | _ -> e 
+
 (* Vous recevez:
  * - une expression `e` de type `elexp` (défini dans elexp.ml)
  * - un contexte `ctx` qui donne la valeur associée à chaque variable
@@ -83,10 +104,6 @@ let optimize (ctx : (string option * (EN.value_type ref)) M.myers)
 
                 
 (* partie du inlining incomplete
-(* return value of an element in the context by its name *)
-let getListElement ctx name =
-    let len = M.length ctx in
-        match
 
 let isElement ctx name n = match nth n ctx with
     | (Some name, _) -> true
