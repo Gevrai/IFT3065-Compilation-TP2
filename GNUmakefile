@@ -108,3 +108,12 @@ run/typer-file:
 
 run/test-file:
 	@./$(BUILDDIR)/test
+
+# everything after this is for our own testing purposes
+run/debug:
+	@./$(BUILDDIR)/typer --debug
+
+run/%.typer: %.typer
+	./_build/typer --debug $<
+
+rr : run/test.typer
