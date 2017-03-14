@@ -64,23 +64,55 @@ let rec constant_folding (e : EL.elexp) = match e with
 
 
 
-let rec constant_propagation (ctx : (string option * (EN.value_type ref)) M.myers)
-                             (e : EL.elexp) 
+let rec constant_propagation 
+    (ctx : (string option * (EN.value_type ref)) M.myers)
+    (e : EL.elexp) 
         : EL.elexp
     = match e with
         | EL.Var ((loc, varname), dbi) -> 
                 (match M.find (fun (s, _) -> s = Some varname) ctx with
                     | None            -> e
                     | Some (_, value) -> (match !value with
-                        | EN.Vint i    -> EL.Imm(Sexp.Integer (Util.dummy_location, i))
-                        | EN.Vstring s -> EL.Imm(Sexp.String (Util.dummy_location, s))
-                        | EN.Vfloat f  -> EL.Imm(Sexp.Float (Util.dummy_location,f))
+                        | EN.Vint i    -> EL.Imm
+                            (Sexp.Integer (Util.dummy_location, i))
+                        | EN.Vstring s -> EL.Imm
+                            (Sexp.String (Util.dummy_location, s))
+                        | EN.Vfloat f  -> EL.Imm
+                            (Sexp.Float (Util.dummy_location,f))
                         | _ -> e))
                         
 
         | EL.Call (f, args) -> EL.Call (constant_propagation ctx f,
-                                        List.map (constant_propagation ctx) args)
-        (* TODO *)
+                                        List.map (constant_propagation ctx) 
+                                            args)
+
+        | EL.Lambda ((_, varname), expr) ->
+                (match M.find (fun (s, _) -> s = Some varname) ctx with
+                    | None -> 
+                            EL.Lambda ((Util.dummy_location, varname), 
+                                constant_propagation ctx expr)
+                    | Some (s, _) ->
+                            EL.Lambda ((Util.dummy_location, varname), 
+                                constant_propagation
+                                (M.map (fun (name, value) -> 
+                                        if name = s then
+                                            (None, value)
+                                        else
+                                            (name, value)) 
+                                ctx) expr ))
+
+
+        | EL.Let (loc, name_exp_list, body) ->
+                e (*TODO*)
+
+        | EL.Case (l, e, branches, default) ->
+            EL.Case(l, constant_propagation ctx e,
+            Util.SMap.map 
+                (fun (loc, li, e) -> (loc, li, constant_propagation ctx e)) 
+                    branches,
+            (match default with
+                | None -> None
+                | Some (n, e) -> Some (n, constant_propagation ctx e)))
         | _ -> e 
 
 (* Vous recevez:
