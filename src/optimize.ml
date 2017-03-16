@@ -4,6 +4,14 @@ module EL = Elexp
 module EN = Env
 module M = Myers
 
+
+(* Creates a boolean from condition, heavily dependant on boolean
+ * representation in builtin.typer, but it works for our purpose *)
+let mkBool cond loc =
+  let s = if cond then "true" else "false" in
+  EL.Imm(Sexp.Symbol(loc, s))
+  (* EL.Cons((loc, s), dB) *)
+
 let rec constant_folding (e : EL.elexp) = match e with
     | EL.Call (f, args) -> ( match (f,args) with
       (* Trivial folding cases with 1 and 0, for integer and floats *)
@@ -26,33 +34,44 @@ let rec constant_folding (e : EL.elexp) = match e with
         | (EL.Var ((_, "_/_"), _), [ expr; EL.Imm(Sexp.Integer(_,1)) ])
         | (EL.Var ((_, "Float_/"), _), [ expr; EL.Imm(Sexp.Float(_,1.0)) ])
           -> constant_folding expr
-      (* Boolean trivial cases *)
-        (* | (EL.Var ((_, "Int_<", _), [bool1;bool2])) *)
     (* If we know the values of both side of the operation we precompute them *)
-    (* TODO : take account of location ? *)
+
         (* Int 'op' Int -> Int  *)
-        | EL.Var ((loc, op_str), _),
-          [EL.Imm(Sexp.Integer(_, num1)); EL.Imm(Sexp.Integer(_, num2))]
+        | EL.Var ((loc, op_str), dB), [EL.Imm(Sexp.Integer(_, num1)); EL.Imm(Sexp.Integer(_, num2))]
           -> (match op_str with
-              | "_+_" -> EL.Imm(Sexp.Integer(loc, num1 + num2))
-              | "_-_" -> EL.Imm(Sexp.Integer(loc, num1 - num2))
-              | "_*_" -> EL.Imm(Sexp.Integer(loc, num1 * num2))
-              | "_/_" -> EL.Imm(Sexp.Integer(loc, num1 / num2))
+              | "_+_"   -> EL.Imm(Sexp.Integer(loc, num1 + num2))
+              | "_-_"   -> EL.Imm(Sexp.Integer(loc, num1 - num2))
+              | "_*_"   -> EL.Imm(Sexp.Integer(loc, num1 * num2))
+              | "_/_"   -> EL.Imm(Sexp.Integer(loc, num1 / num2))
+              | "Int_<" -> mkBool (num1 < num2) loc
+              | "Int_>" -> mkBool (num1 > num2) loc
+              | "Int_eq" -> mkBool (num1 = num2) loc
+              | "Int_<=" -> mkBool (num1 <= num2) loc
+              | "Int_>=" -> mkBool (num1 >= num2) loc
+              | _ -> e
+            )
+        (* Float 'op' Float -> Float *)
+        | EL.Var ((loc, op_str), _), [EL.Imm(Sexp.Float(_, num1)); EL.Imm(Sexp.Float(_, num2))]
+          -> (match op_str with
+              | "Float_+" -> EL.Imm(Sexp.Float(loc, num1 +. num2))
+              | "Float_-" -> EL.Imm(Sexp.Float(loc, num1 -. num2))
+              | "Float_*" -> EL.Imm(Sexp.Float(loc, num1 *. num2))
+              | "Float_/" -> EL.Imm(Sexp.Float(loc, num1 /. num2))
               | _ -> e
             )
         | (_, _) -> e
     )
-   | EL.Lambda (vname, expr) 
+    | EL.Lambda (vname, expr)
             -> EL.Lambda (vname, constant_folding expr)
 
-    | EL.Let (loc, name_exp_list, body) 
-            -> EL.Let (loc, 
+    | EL.Let (loc, name_exp_list, body)
+            -> EL.Let (loc,
             List.map (fun (n, e) -> (n, constant_folding e)) name_exp_list,
             constant_folding body)
 
-    | EL.Case (l, e, branches, default) 
+    | EL.Case (l, e, branches, default)
             -> EL.Case(l, constant_folding e,
-            Util.SMap.map 
+            Util.SMap.map
                 (fun (loc, li, e) -> (loc, li, constant_folding e)) branches,
             (match default with
                 | None -> None
@@ -60,12 +79,12 @@ let rec constant_folding (e : EL.elexp) = match e with
 
     | _ -> e
 
-(* remove from context the elements with name corresponding to the 
+(* remove from context the elements with name corresponding to the
  * nth element from the name_exp_list
  * helper function for the Let case of constant_propagation *)
-let rec remove_names_in_ctx (name_exp_list : (EL.vname * EL.elexp) list) 
-        (ctx : (string option * (EN.value_type ref)) M.myers) = 
-    let rec helper l ctx n len = 
+let rec remove_names_in_ctx (name_exp_list : (EL.vname * EL.elexp) list)
+        (ctx : (string option * (EN.value_type ref)) M.myers) =
+    let rec helper l ctx n len =
         if n = len then ctx else
         match List.nth name_exp_list n with
             | ((_, name), valref)
@@ -73,12 +92,12 @@ let rec remove_names_in_ctx (name_exp_list : (EL.vname * EL.elexp) list)
                         | None -> helper l ctx (n+1) len
                         | Some (varname, varvalue)
                             -> (* eliminate the variable from the context *)
-                                        helper l (M.map (fun (name, value) -> 
+                                        helper l (M.map (fun (name, value) ->
                                                 if name = varname then
                                                     (None, value)
                                                 else
-                                                    (name, value)) 
-                                        ctx) (n+1) len) 
+                                                    (name, value))
+                                        ctx) (n+1) len)
     in helper name_exp_list ctx 0 (List.length name_exp_list)
 
 let rec constant_propagation
@@ -86,7 +105,7 @@ let rec constant_propagation
     (e : EL.elexp)
         : EL.elexp
     = match e with
-        | EL.Var ((loc, varname), dbi) 
+        | EL.Var ((loc, varname), dbi)
             -> (match M.find (fun (s, _) -> s = Some varname) ctx with
                     | None            -> e
                     | Some (_, value) -> (match !value with
@@ -99,22 +118,22 @@ let rec constant_propagation
                         | _ -> e))
 
 
-        | EL.Call (f, args) 
+        | EL.Call (f, args)
             -> EL.Call (constant_propagation ctx f,
-                                        List.map (constant_propagation ctx) 
+                                        List.map (constant_propagation ctx)
                                             args)
 
-        | EL.Lambda ((_, varname), expr) 
+        | EL.Lambda ((_, varname), expr)
             -> (match M.find (fun (s, _) -> s = Some varname) ctx with
-                    | None 
-                        -> EL.Lambda ((Util.dummy_location, varname), 
+                    | None
+                        -> EL.Lambda ((Util.dummy_location, varname),
                                 constant_propagation ctx expr)
-                    | Some (s, _) 
-                        -> EL.Lambda ((Util.dummy_location, varname), 
+                    | Some (s, _)
+                        -> EL.Lambda ((Util.dummy_location, varname),
                                 constant_propagation
-                                (* eliminate the variable from the 
+                                (* eliminate the variable from the
                                  * context *)
-                                (M.map (fun (name, value) 
+                                (M.map (fun (name, value)
                                     -> if name = s then
                                             (None, value)
                                         else
@@ -122,17 +141,17 @@ let rec constant_propagation
                                 ctx) expr ))
 
 
-        | EL.Let (loc, name_exp_list, body) 
-            -> EL.Let(loc, 
-                    List.map (fun (var, expr) 
+        | EL.Let (loc, name_exp_list, body)
+            -> EL.Let(loc,
+                    List.map (fun (var, expr)
                         -> (var, constant_propagation ctx expr)) name_exp_list,
-                    constant_propagation 
+                    constant_propagation
                         (remove_names_in_ctx name_exp_list ctx) body)
 
-        | EL.Case (l, e, branches, default) 
+        | EL.Case (l, e, branches, default)
             -> EL.Case(l, constant_propagation ctx e,
-            Util.SMap.map 
-                (fun (loc, li, e) -> (loc, li, constant_propagation ctx e)) 
+            Util.SMap.map
+                (fun (loc, li, e) -> (loc, li, constant_propagation ctx e))
                     branches,
             (match default with
                 | None -> None
