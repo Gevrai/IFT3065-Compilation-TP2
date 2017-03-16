@@ -64,7 +64,7 @@ let rec constant_folding (e : EL.elexp) = match e with
           -> EL.Imm(Sexp.String(loc, string_of_float num1))
         | EL.Var ((loc, "String_eq"), _), [EL.Imm(Sexp.String(_, str1)); EL.Imm(Sexp.String(_, str2))]
           -> mkBool (String.equal str1 str2) loc
-        | (_, _) -> e
+        | (_,_) -> EL.Call(constant_folding f, List.map constant_folding args)
     )
     | EL.Lambda (vname, expr)
             -> EL.Lambda (vname, constant_folding expr)
