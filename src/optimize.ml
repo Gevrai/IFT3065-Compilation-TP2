@@ -37,7 +37,7 @@ let rec constant_folding (e : EL.elexp) = match e with
     (* If we know the values of both side of the operation we precompute them *)
 
         (* Int 'op' Int -> Int  *)
-        | EL.Var ((loc, op_str), dB), [EL.Imm(Sexp.Integer(_, num1)); EL.Imm(Sexp.Integer(_, num2))]
+        | EL.Var ((loc, op_str), _ ), [EL.Imm(Sexp.Integer(_, num1)); EL.Imm(Sexp.Integer(_, num2))]
           -> (match op_str with
               | "_+_"   -> EL.Imm(Sexp.Integer(loc, num1 + num2))
               | "_-_"   -> EL.Imm(Sexp.Integer(loc, num1 - num2))
@@ -59,6 +59,11 @@ let rec constant_folding (e : EL.elexp) = match e with
               | "Float_/" -> EL.Imm(Sexp.Float(loc, num1 /. num2))
               | _ -> e
             )
+        (* String functions *)
+        | EL.Var ((loc, "Float_to_string"), _), [EL.Imm(Sexp.Float(_, num1))]
+          -> EL.Imm(Sexp.String(loc, string_of_float num1))
+        | EL.Var ((loc, "String_eq"), _), [EL.Imm(Sexp.String(_, str1)); EL.Imm(Sexp.String(_, str2))]
+          -> mkBool (String.equal str1 str2) loc
         | (_, _) -> e
     )
     | EL.Lambda (vname, expr)
