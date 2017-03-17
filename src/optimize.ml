@@ -14,7 +14,7 @@ let mkBool cond loc =
 
 let rec constant_folding (e : EL.elexp) = match e with
     | EL.Call (f, args) -> ( match (f,args) with
-      (* Trivial folding cases with 1 and 0, for integer and floats *)
+    (* Trivial folding cases with 1 and 0, for integer and floats *)
         (* e + 0 -> e *)
         | (EL.Var ((_, "_+_"), _), [expr; EL.Imm(Sexp.Integer(_,0))])
         | (EL.Var ((_, "Float_+"), _), [expr; EL.Imm(Sexp.Float(_,0.0))])
@@ -34,8 +34,8 @@ let rec constant_folding (e : EL.elexp) = match e with
         | (EL.Var ((_, "_/_"), _), [ expr; EL.Imm(Sexp.Integer(_,1)) ])
         | (EL.Var ((_, "Float_/"), _), [ expr; EL.Imm(Sexp.Float(_,1.0)) ])
           -> constant_folding expr
-    (* If we know the values of both side of the operation we precompute them *)
 
+    (* If we know the values of both side of the operation we precompute them *)
         (* Int 'op' Int -> Int  *)
         | EL.Var ((loc, op_str), _ ), [EL.Imm(Sexp.Integer(_, num1)); EL.Imm(Sexp.Integer(_, num2))]
           -> (match op_str with
@@ -64,16 +64,16 @@ let rec constant_folding (e : EL.elexp) = match e with
           -> EL.Imm(Sexp.String(loc, string_of_float num1))
         | EL.Var ((loc, "String_eq"), _), [EL.Imm(Sexp.String(_, str1)); EL.Imm(Sexp.String(_, str2))]
           -> mkBool (String.equal str1 str2) loc
+        (* We didn't find anything, look inside for opportunities *)
         | (_,_) -> EL.Call(constant_folding f, List.map constant_folding args)
     )
+    (* Nothing to do really aside from propagating the optimization *)
     | EL.Lambda (vname, expr)
             -> EL.Lambda (vname, constant_folding expr)
-
     | EL.Let (loc, name_exp_list, body)
             -> EL.Let (loc,
             List.map (fun (n, e) -> (n, constant_folding e)) name_exp_list,
             constant_folding body)
-
     | EL.Case (l, e, branches, default)
             -> EL.Case(l, constant_folding e,
             Util.SMap.map
@@ -81,7 +81,6 @@ let rec constant_folding (e : EL.elexp) = match e with
             (match default with
                 | None -> None
                 | Some (n, e) -> Some (n, constant_folding e)))
-
     | _ -> e
 
 (* remove from context the elements with name corresponding to the
@@ -91,8 +90,8 @@ let rec remove_names_in_ctx (name_exp_list : (EL.vname * EL.elexp) list)
         (ctx : (string option * (EN.value_type ref)) M.myers) =
     let rec helper l ctx n len =
         if n = len then ctx else
-        match List.nth name_exp_list n with
-            | ((_, name), valref)
+          match List.nth name_exp_list n with
+          | ((_, name), valref)
                 -> (match M.find (fun (s, _) -> s = Some name) ctx with
                         | None -> helper l ctx (n+1) len
                         | Some (varname, varvalue)
@@ -162,6 +161,17 @@ let rec constant_propagation
                 | None -> None
                 | Some (n, e) -> Some (n, constant_propagation ctx e)))
         | _ -> e
+
+(* let rec case_reduction *)
+(*     (ctx : (string option * (EN.value_type ref)) M.myers) (e : EL.elexp) *)
+(*         : EL.elexp = match e with *)
+(*   | EL.Case (loc, exp, branches, default) *)
+(*     -> match exp with *)
+(*       | EL.Cons(loc, cname) ->  *)
+
+(*     let goodBranch = *)
+(*   | _ -> e *)
+
 
 (* Vous recevez:
  * - une expression `e` de type `elexp` (défini dans elexp.ml)
