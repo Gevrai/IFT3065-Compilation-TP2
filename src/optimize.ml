@@ -37,7 +37,8 @@ let rec constant_folding (e : EL.elexp) = match e with
 
     (* If we know the values of both side of the operation we precompute them *)
         (* Int 'op' Int -> Int  *)
-        | EL.Var ((loc, op_str), _ ), [EL.Imm(Sexp.Integer(_, num1)); EL.Imm(Sexp.Integer(_, num2))]
+        | EL.Var ((loc, op_str), _ ), [EL.Imm(Sexp.Integer(_, num1)); 
+                                       EL.Imm(Sexp.Integer(_, num2))]
           -> (match op_str with
               | "_+_"   -> EL.Imm(Sexp.Integer(loc, num1 + num2))
               | "_-_"   -> EL.Imm(Sexp.Integer(loc, num1 - num2))
@@ -51,7 +52,8 @@ let rec constant_folding (e : EL.elexp) = match e with
               | _ -> e
             )
         (* Float 'op' Float -> Float *)
-        | EL.Var ((loc, op_str), _), [EL.Imm(Sexp.Float(_, num1)); EL.Imm(Sexp.Float(_, num2))]
+        | EL.Var ((loc, op_str), _), [EL.Imm(Sexp.Float(_, num1)); 
+                                      EL.Imm(Sexp.Float(_, num2))]
           -> (match op_str with
               | "Float_+" -> EL.Imm(Sexp.Float(loc, num1 +. num2))
               | "Float_-" -> EL.Imm(Sexp.Float(loc, num1 -. num2))
@@ -62,8 +64,9 @@ let rec constant_folding (e : EL.elexp) = match e with
         (* String functions *)
         | EL.Var ((loc, "Float_to_string"), _), [EL.Imm(Sexp.Float(_, num1))]
           -> EL.Imm(Sexp.String(loc, string_of_float num1))
-        | EL.Var ((loc, "String_eq"), _), [EL.Imm(Sexp.String(_, str1)); EL.Imm(Sexp.String(_, str2))]
-          -> mkBool (String.equal str1 str2) loc
+        | EL.Var ((loc, "String_eq"), _), [EL.Imm(Sexp.String(_, str1)); 
+                                           EL.Imm(Sexp.String(_, str2))]
+          -> mkBool (str1 = str2) loc
         (* We didn't find anything, look inside for opportunities *)
         | (_,_) -> EL.Call(constant_folding f, List.map constant_folding args)
     )
@@ -83,10 +86,27 @@ let rec constant_folding (e : EL.elexp) = match e with
                 | Some (n, e) -> Some (n, constant_folding e)))
     | _ -> e
 
+(* lookup for value of a variable in the given context and return that
+ * value if it exists *)
+let lookup_ctx ctx varname = 
+    let rec aux ctx varname ind len =
+        if ind = len then
+            None
+        else
+            match M.nth ind ctx with 
+                | (None, value_ref) -> aux ctx varname (ind+1) len
+                | (Some var, value_ref) 
+                    -> if var = varname then
+                           Some !value_ref
+                       else
+                           aux ctx varname (ind+1) len
+                
+    in aux ctx varname 0 (M.length ctx)
+
 (* remove from context the elements with name corresponding to the
  * nth element from the name_exp_list
  * helper function for the Let case of constant_propagation *)
-let rec remove_names_in_ctx (name_exp_list : (EL.vname * EL.elexp) list)
+let remove_names_in_ctx (name_exp_list : (EL.vname * EL.elexp) list)
         (ctx : (string option * (EN.value_type ref)) M.myers) =
     let rec helper l ctx n len =
         if n = len then ctx else
@@ -94,15 +114,17 @@ let rec remove_names_in_ctx (name_exp_list : (EL.vname * EL.elexp) list)
           | ((_, name), valref)
                 -> (match M.find (fun (s, _) -> s = Some name) ctx with
                         | None -> helper l ctx (n+1) len
-                        | Some (varname, varvalue)
+                        | Some _
                             -> (* eliminate the variable from the context *)
-                                        helper l (M.map (fun (name, value) ->
-                                                if name = varname then
+                                        helper l (M.map (fun (varname, value) ->
+                                                if varname = Some name then
                                                     (None, value)
                                                 else
-                                                    (name, value))
+                                                    (varname, value))
                                         ctx) (n+1) len)
     in helper name_exp_list ctx 0 (List.length name_exp_list)
+
+
 
 let rec constant_propagation
     (ctx : (string option * (EN.value_type ref)) M.myers)
@@ -110,9 +132,9 @@ let rec constant_propagation
         : EL.elexp
     = match e with
         | EL.Var ((loc, varname), dbi)
-            -> (match M.find (fun (s, _) -> s = Some varname) ctx with
-                    | None            -> e
-                    | Some (_, value) -> (match !value with
+            -> (match lookup_ctx ctx varname with
+                    | None -> e
+                    | Some value -> (match value with
                         | EN.Vint i    -> EL.Imm
                             (Sexp.Integer (Util.dummy_location, i))
                         | EN.Vstring s -> EL.Imm
@@ -121,24 +143,23 @@ let rec constant_propagation
                             (Sexp.Float (Util.dummy_location,f))
                         | _ -> e))
 
-
         | EL.Call (f, args)
             -> EL.Call (constant_propagation ctx f,
                                         List.map (constant_propagation ctx)
                                             args)
 
         | EL.Lambda ((_, varname), expr)
-            -> (match M.find (fun (s, _) -> s = Some varname) ctx with
+            -> (match lookup_ctx ctx varname with
                     | None
                         -> EL.Lambda ((Util.dummy_location, varname),
                                 constant_propagation ctx expr)
-                    | Some (s, _)
+                    | Some _
                         -> EL.Lambda ((Util.dummy_location, varname),
                                 constant_propagation
                                 (* eliminate the variable from the
                                  * context *)
                                 (M.map (fun (name, value)
-                                    -> if name = s then
+                                    -> if name = Some varname then
                                             (None, value)
                                         else
                                             (name, value))
@@ -190,8 +211,7 @@ let rec constant_propagation
 let optimize (ctx : (string option * (EN.value_type ref)) M.myers)
              (e : EL.elexp)
     : EL.elexp
-  = constant_folding e
-        (* = e *)
+  = constant_propagation ctx e
 
 (* partie du inlining incomplete
 
