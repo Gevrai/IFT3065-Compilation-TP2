@@ -10,9 +10,14 @@ module M = Myers
 let mkBool cond loc =
   let s = if cond then "true" else "false" in
   EL.Imm(Sexp.Symbol(loc, s))
-  (* EL.Cons((loc, s), dB) *)
 
+
+(* Relatively basic recursive constant folding optimization
+   - Returns 'true' as second tuple value if ever any of the elexp inside has
+    been altered.
+*)
 let rec constant_folding (e : EL.elexp) = match e with
+  (* Some basic fonctions can be precomputed maybe *)
     | EL.Call (f, args) -> ( match (f,args) with
     (* Trivial folding cases with 1 and 0, for integer and floats *)
         (* e + 0 -> e *)
@@ -33,58 +38,99 @@ let rec constant_folding (e : EL.elexp) = match e with
         (* e/1 -> e *)
         | (EL.Var ((_, "_/_"), _), [ expr; EL.Imm(Sexp.Integer(_,1)) ])
         | (EL.Var ((_, "Float_/"), _), [ expr; EL.Imm(Sexp.Float(_,1.0)) ])
-          -> constant_folding expr
+          -> let (ret,hC) = constant_folding expr in (ret, true)
 
     (* If we know the values of both side of the operation we precompute them *)
         (* Int 'op' Int -> Int  *)
-        | EL.Var ((loc, op_str), _ ), [EL.Imm(Sexp.Integer(_, num1)); 
+        | EL.Var ((loc, op_str), _ ), [EL.Imm(Sexp.Integer(_, num1));
                                        EL.Imm(Sexp.Integer(_, num2))]
           -> (match op_str with
-              | "_+_"   -> EL.Imm(Sexp.Integer(loc, num1 + num2))
-              | "_-_"   -> EL.Imm(Sexp.Integer(loc, num1 - num2))
-              | "_*_"   -> EL.Imm(Sexp.Integer(loc, num1 * num2))
-              | "_/_"   -> EL.Imm(Sexp.Integer(loc, num1 / num2))
-              | "Int_<" -> mkBool (num1 < num2) loc
-              | "Int_>" -> mkBool (num1 > num2) loc
-              | "Int_eq" -> mkBool (num1 = num2) loc
-              | "Int_<=" -> mkBool (num1 <= num2) loc
-              | "Int_>=" -> mkBool (num1 >= num2) loc
-              | _ -> e
+              | "_+_"    -> (EL.Imm(Sexp.Integer(loc, num1 + num2)), true)
+              | "_-_"    -> (EL.Imm(Sexp.Integer(loc, num1 - num2)), true)
+              | "_*_"    -> (EL.Imm(Sexp.Integer(loc, num1 * num2)), true)
+              | "_/_"    -> (EL.Imm(Sexp.Integer(loc, num1 / num2)), true)
+              | "Int_<"  -> (mkBool (num1 < num2) loc, true)
+              | "Int_>"  -> (mkBool (num1 > num2) loc, true)
+              | "Int_eq" -> (mkBool (num1 = num2) loc, true)
+              | "Int_<=" -> (mkBool (num1 <= num2) loc, true)
+              | "Int_>=" -> (mkBool (num1 >= num2) loc, true)
+              | _ -> (e, false)
             )
         (* Float 'op' Float -> Float *)
         | EL.Var ((loc, op_str), _), [EL.Imm(Sexp.Float(_, num1)); 
                                       EL.Imm(Sexp.Float(_, num2))]
           -> (match op_str with
-              | "Float_+" -> EL.Imm(Sexp.Float(loc, num1 +. num2))
-              | "Float_-" -> EL.Imm(Sexp.Float(loc, num1 -. num2))
-              | "Float_*" -> EL.Imm(Sexp.Float(loc, num1 *. num2))
-              | "Float_/" -> EL.Imm(Sexp.Float(loc, num1 /. num2))
-              | _ -> e
+              | "Float_+" -> (EL.Imm(Sexp.Float(loc, num1 +. num2)), true)
+              | "Float_-" -> (EL.Imm(Sexp.Float(loc, num1 -. num2)), true)
+              | "Float_*" -> (EL.Imm(Sexp.Float(loc, num1 *. num2)), true)
+              | "Float_/" -> (EL.Imm(Sexp.Float(loc, num1 /. num2)), true)
+              | _ -> (e, false)
             )
         (* String functions *)
         | EL.Var ((loc, "Float_to_string"), _), [EL.Imm(Sexp.Float(_, num1))]
-          -> EL.Imm(Sexp.String(loc, string_of_float num1))
+          -> (EL.Imm(Sexp.String(loc, string_of_float num1)), true)
         | EL.Var ((loc, "String_eq"), _), [EL.Imm(Sexp.String(_, str1)); 
                                            EL.Imm(Sexp.String(_, str2))]
-          -> mkBool (str1 = str2) loc
+          -> (mkBool (str1 = str2) loc, true)
         (* We didn't find anything, look inside for opportunities *)
-        | (_,_) -> EL.Call(constant_folding f, List.map constant_folding args)
+        | (_,_) -> let (f_e, f_hC) = constant_folding f in
+          let (args_e, args_hC) = constant_folding_elexps args in
+          (EL.Call(f_e, args_e), f_hC || args_hC)
     )
-    (* Nothing to do really aside from propagating the optimization *)
+
+    (* Nothing to do really aside from propagating the optimization, the hard
+        part here is to not mess the hasChanged boolean value
+       There are three helper function to do this right after *)
     | EL.Lambda (vname, expr)
-            -> EL.Lambda (vname, constant_folding expr)
-    | EL.Let (loc, name_exp_list, body)
-            -> EL.Let (loc,
-            List.map (fun (n, e) -> (n, constant_folding e)) name_exp_list,
-            constant_folding body)
+      -> let (ret,hC) = constant_folding expr in
+      (EL.Lambda (vname, ret), hC)
+
+    | EL.Let (loc, name_exprs, body)
+      -> let (body_e, body_hC) = constant_folding body in
+      let (name_exprs, name_exprs_hC)= constant_folding_name_exprs name_exprs in
+      (EL.Let(loc, name_exprs, body_e), body_hC || name_exprs_hC)
+
     | EL.Case (l, e, branches, default)
-            -> EL.Case(l, constant_folding e,
-            Util.SMap.map
-                (fun (loc, li, e) -> (loc, li, constant_folding e)) branches,
-            (match default with
-                | None -> None
-                | Some (n, e) -> Some (n, constant_folding e)))
-    | _ -> e
+      -> let (e, ehC) = constant_folding e in
+      let (b, bhC) = constant_folding_branches branches in
+      let (d, dhC) = match default with
+        | None -> (None, false)
+        | Some (n,e)
+          -> let (d', dhC') = constant_folding e in (Some (n, d'), dhC')
+      in
+      (EL.Case(l, e, b, d), ehC || bhC || dhC)
+    | _ -> (e, false)
+
+(* From a elexp list of a call, scours the building 'elexp' and
+ * recursively fold the constants inside, returning true if it happened *)
+and constant_folding_elexps exprs = match exprs with
+  | [] -> ([], false)
+  | e :: es ->
+    let (e, hC) = constant_folding e in
+    let (es, hCs) = constant_folding_elexps es in
+    (e :: es, hC || hCs)
+
+(* From a name_exp list of a let binding, scours the building 'elexp' and
+ * recursively fold the constants inside, returning true if hasChanged *)
+and constant_folding_name_exprs name_exprs = match name_exprs with
+  | [] -> ([], false)
+  | (n, e) :: es ->
+    let (e, hC) = constant_folding e in
+    let (es, hCs) = constant_folding_name_exprs es in
+    ((n,e) :: es, hC || hCs)
+
+(* From a branch consisting of a map, returns the optimized elexp map and true
+   if there was any changes made to any elexp inside *)
+and constant_folding_branches branches =
+  let branches_list = Elexp.SMap.bindings branches in
+  let rec internal_fold lst = 
+    match lst with
+    | [] -> (Elexp.SMap.empty,false)
+    | (key, (l,n,e)) :: es ->
+      let (e, hC) = constant_folding e in
+      let (es, hCs) = internal_fold es in
+      (Elexp.SMap.add key (l,n,e) es, hC || hCs)
+  in internal_fold branches_list
 
 (* lookup for value of a variable in the given context and return that
  * value if it exists *)
@@ -100,7 +146,7 @@ let lookup_ctx ctx varname =
                            Some !value_ref
                        else
                            aux ctx varname (ind+1) len
-                
+
     in aux ctx varname 0 (M.length ctx)
 
 (* remove from context the elements with name corresponding to the
@@ -188,7 +234,7 @@ let rec constant_propagation
 (*         : EL.elexp = match e with *)
 (*   | EL.Case (loc, exp, branches, default) *)
 (*     -> match exp with *)
-(*       | EL.Cons(loc, cname) ->  *)
+(*       | EL.Cons(loc, cname) -> *)
 
 (*     let goodBranch = *)
 (*   | _ -> e *)
@@ -208,10 +254,11 @@ let rec constant_propagation
  * Vous devez renvoyer une nouvelle expression de type `elexp` équivalente à
  * `e` et idéalement plus simple/efficace.  *)
 
-let optimize (ctx : (string option * (EN.value_type ref)) M.myers)
-             (e : EL.elexp)
-    : EL.elexp
-  = constant_propagation ctx e
+let rec optimize (ctx : (string option * (EN.value_type ref)) M.myers)
+             (e : EL.elexp) : EL.elexp =
+  let prop = constant_propagation ctx e in
+  let (folded, hasChanged) = constant_folding prop in
+  if hasChanged then optimize ctx folded else folded
 
 (* partie du inlining incomplete
 
