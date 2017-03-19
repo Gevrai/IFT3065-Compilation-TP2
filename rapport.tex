@@ -1,0 +1,60 @@
+\documentclass{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{url}
+
+\begin{document}
+
+\title{Travail pratique \#2 - IFT-3065}
+\author{Nicolas Lafond et Gevrai Jodoin-Tremblay}
+\date{Mercredi 22 Mars 2017}
+\maketitle
+
+\section{Introduction}
+
+Définitivement, au moins 75\% du travail dans ce TP fut de comprendre les 'elexp' que l'on recevait en argument de la fonction 'optimize', et par le fait même, la structure interne de l'interpréteur \emph{Typer}.
+
+Nous avons choisi des optimisations qui se complémentaient le plus possible, c'est à dire le 'constant folding' ainsi que la propagation de constantes. Ces deux types d'optimisations sont très complémentaires, puisqu'après chaque passe de l'une des optimisations, il y a de bonnes chances que ceci ait ouvert de nouvelles oppotunitées pour l'autre.
+
+Ainsi, l'un des problèmes auquel nous avons fait face était l'ordonnancement de ces optimisations, mais aussi de s'assurer qu'il ne reste plus rien à 'fold' ou propager.
+
+Ensuite, puisque nous considérions ces optimisations comme étant en fait une seule ayant trait aux variables, nous avons tenté l'élimination de code mort dans les 'case' et les 'let'. Cette optimisation est des plus utile après la propagation et le 'folding' des constantes et c'est pourquoi nous l'avons choisi.
+
+\section{Constantes et variables immuables}
+\subsection{Constant folding}
+
+Dans sa forme la plus simple, cette optimisation est très facile à implémenter. En effet, nous avons des cas de bases, transformant une expression 'Elexp.Call' contenant des constantes 'Elexp.Imm', en une simple constante immuable (précomputation) ou bien en une expression de base (élimination d'une addition par zéro, d'une mutiplication par un,etc). Ceci se résume en une vingtaine de cas qui sont véritablement le coeur du 'folding' de constante.
+
+Par contre, il faut évidemment généraliser ceci dans les autres types de 'elexp', qui peuvent aussi contenir d'autre 'elexp' imbriqués, nécessitant d'appeler récursivement l'optimisation sur ceux-ci. C'est ici que les problèmes peuvent survenir, car une passe de cet algorithme ne fera évidemment que 'fold' les feuilles de l'arbre de 'elexps'. Il faut ainsi passer plusieurs fois à travers l'arbre pour bien s'assurer que tous les 'fold' ont bel et bien eu lieu. Notre solution initiale était donc de renvoyer une valeure boolean 'true' si un changement à eu lieu n'importe où dans la passe courrante. Si oui, on recommence jusqu'à ce qu'une passe renvoie 'false' et ainsi on a terminé. Évidement, ceci peut s'avérer très inneficace, étant O(n^2) en pire cas.
+
+
+\subsection{Propagation de constante}
+
+\section{Élimination de code mort}
+
+
+
+
+\section{Constant folding}
+\begin{thebibliography}{9}
+
+\bibitem{realworldocaml}
+	Yaron Minsky, Anil Madhavapeddy and Jason Hickey,
+	Real World OCaml,
+	\url{http://realworldocaml.org},
+	O'Reilly,
+	2012.
+
+\bibitem{ocaml}
+	Learn OCaml
+	\url{https://ocaml.org/learn/},
+
+\bibitem{inria}
+	Xavier Leroy et al.,
+	OCaml Doc and user's manual,
+	\url{http://caml.inria.fr/pub/docs/manual-ocaml},
+	Institut National de Recherche en Informatique et en Automatique,
+	2013.
+
+\end{thebibliography}
+\end{document}
