@@ -38,7 +38,8 @@ let rec constant_folding (e : EL.elexp) = match e with
         (* e/1 -> e *)
         | (EL.Var ((_, "_/_"), _), [ expr; EL.Imm(Sexp.Integer(_,1)) ])
         | (EL.Var ((_, "Float_/"), _), [ expr; EL.Imm(Sexp.Float(_,1.0)) ])
-          -> let (ret,hC) = constant_folding expr in (ret, true)
+          -> let (ret,hC) = constant_folding expr in
+          if hC then constant_folding ret else (ret, true)
 
     (* If we know the values of both side of the operation we precompute them *)
         (* Int 'op' Int -> Int  *)
@@ -72,7 +73,8 @@ let rec constant_folding (e : EL.elexp) = match e with
         | EL.Var ((loc, "String_eq"), _), [EL.Imm(Sexp.String(_, str1)); 
                                            EL.Imm(Sexp.String(_, str2))]
           -> (mkBool (str1 = str2) loc, true)
-        (* We didn't find anything, look inside for opportunities *)
+        (* We didn't find anything, look inside for opportunities, beware not to
+        mess the hasChanged boolean value! *)
         | (_,_) -> let (f_e, f_hC) = constant_folding f in
           let (args_e, args_hC) = constant_folding_elexps args in
           (EL.Call(f_e, args_e), f_hC || args_hC)
@@ -101,26 +103,21 @@ let rec constant_folding (e : EL.elexp) = match e with
       (EL.Case(l, e, b, d), ehC || bhC || dhC)
     | _ -> (e, false)
 
-(* From a elexp list of a call, scours the building 'elexp' and
- * recursively fold the constants inside, returning true if it happened *)
+(* Every three next function takes a list or map as input and propagate
+   the constant_folding optimization to every constituants. If ever any of those
+   hasChanged (hC), returns true for the next optimization pass *)
 and constant_folding_elexps exprs = match exprs with
   | [] -> ([], false)
   | e :: es ->
     let (e, hC) = constant_folding e in
     let (es, hCs) = constant_folding_elexps es in
     (e :: es, hC || hCs)
-
-(* From a name_exp list of a let binding, scours the building 'elexp' and
- * recursively fold the constants inside, returning true if hasChanged *)
 and constant_folding_name_exprs name_exprs = match name_exprs with
   | [] -> ([], false)
   | (n, e) :: es ->
     let (e, hC) = constant_folding e in
     let (es, hCs) = constant_folding_name_exprs es in
     ((n,e) :: es, hC || hCs)
-
-(* From a branch consisting of a map, returns the optimized elexp map and true
-   if there was any changes made to any elexp inside *)
 and constant_folding_branches branches =
   let branches_list = Elexp.SMap.bindings branches in
   let rec internal_fold lst = 
