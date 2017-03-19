@@ -25,10 +25,28 @@ Ensuite, puisque nous considérions ces optimisations comme étant en fait une s
 
 Dans sa forme la plus simple, cette optimisation est très facile à implémenter. En effet, nous avons des cas de bases, transformant une expression 'Elexp.Call' contenant des constantes 'Elexp.Imm', en une simple constante immuable (précomputation) ou bien en une expression de base (élimination d'une addition par zéro, d'une mutiplication par un,etc). Ceci se résume en une vingtaine de cas qui sont véritablement le coeur du 'folding' de constante.
 
-Par contre, il faut évidemment généraliser ceci dans les autres types de 'elexp', qui peuvent aussi contenir d'autre 'elexp' imbriqués, nécessitant d'appeler récursivement l'optimisation sur ceux-ci. C'est ici que les problèmes peuvent survenir, car une passe de cet algorithme ne fera évidemment que 'fold' les feuilles de l'arbre de 'elexps'. Il faut ainsi passer plusieurs fois à travers l'arbre pour bien s'assurer que tous les 'fold' ont bel et bien eu lieu. Notre solution initiale était donc de renvoyer une valeure boolean 'true' si un changement à eu lieu n'importe où dans la passe courrante. Si oui, on recommence jusqu'à ce qu'une passe renvoie 'false' et ainsi on a terminé. Évidement, ceci peut s'avérer très inneficace, étant O(n^2) en pire cas.
+\paragraph{}
+Par contre, il faut évidemment généraliser ceci dans les autres types de 'elexp', qui peuvent aussi contenir d'autre 'elexp' imbriqués, nécessitant d'appeler récursivement l'optimisation sur ceux-ci. C'est ici que les problèmes peuvent survenir, car une passe de cet algorithme ne fera évidemment que 'fold' les feuilles de l'arbre de 'elexps'. Il faut ainsi passer plusieurs fois à travers l'arbre pour bien s'assurer que tous les 'fold' ont bel et bien eu lieu. Notre solution initiale était donc de renvoyer une valeure boolean 'true' si un changement à eu lieu n'importe où dans la passe courrante. Si oui, on recommence jusqu'à ce qu'une passe renvoie 'false' et ainsi on a terminé. Évidement, ceci peut s'avérer très inneficace, étant O($n^2$) en pire cas.
 
 
 \subsection{Propagation de constante}
+
+La propagation de constante était plux complexe à réaliser que le "constant
+folding" étant donné qu'il fallait également comprendre comment utiliser le 
+contexte pour retrouver les valeurs affecté aux variables et transformer les
+expressions de manière adéquate en conséquence. Le contexte est une liste dont
+les éléments sont des tuples composés d'une chaîne de caractère optionnelle(
+pour le nom de la variable ou fonction) et une référence vers un value\_type
+dont la définition se trouve dans le fichier "env.ml". Les value\_type sont
+les valeurs des expressions obtenues après l'évaluation. La liste du contexte
+en elle-même est implémenté dans le fichier "myers.ml" ainsi que les fonctions
+nécessaire pour l'utiliser. Pour trouver un élément de la liste avec une
+string donné nous avons dû écrire des fonctions qui parcourt la liste un 
+élément à la fois à partir du début de la liste car la fonction 'find' défini
+dans le fichier "myers.ml" effectue une recherche dichotomique sur la liste ce
+qui n'est pas approprié pour le contexte étant donné que les élément ne sont
+pas triés. De plus la propagation de constante doit s'effectuer de manière 
+récursive sur ses sous-expressions comme c'est le cas pour le constant folding.
 
 \section{Élimination de code mort}
 
