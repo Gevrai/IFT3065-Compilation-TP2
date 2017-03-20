@@ -5,21 +5,41 @@ module EN = Env
 module M = Myers
 
 
-(* Creates a boolean from condition, heavily dependant on boolean
- * representation in builtin.typer, but it works for our purpose *)
-let mkBool cond loc =
-  let s = if cond then "true" else "false" in
-  EL.Imm(Sexp.Symbol(loc, s))
 
 
-(* Relatively basic recursive constant folding optimization
-   - Returns 'true' as second tuple value if ever any of the elexp inside has
-    been altered.
+(* Constant folding optimization, folding everything it can in one pass.
+   - TODO shallowChange : if the children of optimized elexp have already been checked,
+       only do a shallow optimization pass when there is a modification
+   - Returns tuple (optimizedElexp : Elexp.elexp, isModified : bool)
 *)
-let rec constant_folding (e : EL.elexp) = match e with
-  (* Some basic fonctions can be precomputed maybe *)
+let constant_folding (e : EL.elexp) =
+  (* If at any time in the optimization pass we modify something, this is 'true' *)
+  let globalModified = ref false in
+  let globalModification () = globalModified := true; () in
+
+  (* Creates integer/float/boolean *)
+  let makeInt loc num =
+    globalModification ();
+    EL.Imm(Sexp.Integer(loc, num)) in
+  let makeFloat loc num =
+    globalModification ();
+    EL.Imm(Sexp.Float(loc, num)) in
+  let makeBool loc cond =
+    let s = if cond then "true" else "false" in
+    globalModification ();
+    EL.Imm(Sexp.Symbol(loc, s)) in
+
+  (* From (elexp, hasChanged) tuple, only optimize the immediate children since there can only
+  be new opportunities there, not deeper *)
+  let rec shallowOptimizeIfNeeded (e, hC) =
+    if hC
+    then cstfld e false
+    else (e, hC)
+  (* Main constant folding recursive function *)
+  and cstfld e deepOpt = match e with
+    (* Some basic fonctions can be precomputed maybe *)
     | EL.Call (f, args) -> ( match (f,args) with
-    (* Trivial folding cases with 1 and 0, for integer and floats *)
+      (* Trivial folding cases with 1 and 0, for integer and floats *)
         (* e + 0 -> e *)
         | (EL.Var ((_, "_+_"), _), [expr; EL.Imm(Sexp.Integer(_,0))])
         | (EL.Var ((_, "Float_+"), _), [expr; EL.Imm(Sexp.Float(_,0.0))])
@@ -38,33 +58,36 @@ let rec constant_folding (e : EL.elexp) = match e with
         (* e/1 -> e *)
         | (EL.Var ((_, "_/_"), _), [ expr; EL.Imm(Sexp.Integer(_,1)) ])
         | (EL.Var ((_, "Float_/"), _), [ expr; EL.Imm(Sexp.Float(_,1.0)) ])
-          -> let (ret,hC) = constant_folding expr in
-          if hC then constant_folding ret else (ret, true)
-
+          -> globalModification ();
+          if deepOpt
+          then
+            let (e,hC) = shallowOptimizeIfNeeded (cstfld expr deepOpt) in
+            (e, true)
+          else (expr, true)
     (* If we know the values of both side of the operation we precompute them *)
         (* Int 'op' Int -> Int  *)
         | EL.Var ((loc, op_str), _ ), [EL.Imm(Sexp.Integer(_, num1));
                                        EL.Imm(Sexp.Integer(_, num2))]
           -> (match op_str with
-              | "_+_"    -> (EL.Imm(Sexp.Integer(loc, num1 + num2)), true)
-              | "_-_"    -> (EL.Imm(Sexp.Integer(loc, num1 - num2)), true)
-              | "_*_"    -> (EL.Imm(Sexp.Integer(loc, num1 * num2)), true)
-              | "_/_"    -> (EL.Imm(Sexp.Integer(loc, num1 / num2)), true)
-              | "Int_<"  -> (mkBool (num1 < num2) loc, true)
-              | "Int_>"  -> (mkBool (num1 > num2) loc, true)
-              | "Int_eq" -> (mkBool (num1 = num2) loc, true)
-              | "Int_<=" -> (mkBool (num1 <= num2) loc, true)
-              | "Int_>=" -> (mkBool (num1 >= num2) loc, true)
+              | "_+_"    -> (makeInt loc (num1 + num2), true)
+              | "_-_"    -> (makeInt loc (num1 - num2), true)
+              | "_*_"    -> (makeInt loc (num1 * num2), true)
+              | "_/_"    -> (makeInt loc (num1 / num2), true)
+              | "Int_<"  -> (makeBool loc (num1 < num2), true)
+              | "Int_>"  -> (makeBool loc (num1 > num2), true)
+              | "Int_eq" -> (makeBool loc (num1 = num2), true)
+              | "Int_<=" -> (makeBool loc (num1 <= num2), true)
+              | "Int_>=" -> (makeBool loc (num1 >= num2), true)
               | _ -> (e, false)
             )
         (* Float 'op' Float -> Float *)
         | EL.Var ((loc, op_str), _), [EL.Imm(Sexp.Float(_, num1)); 
                                       EL.Imm(Sexp.Float(_, num2))]
           -> (match op_str with
-              | "Float_+" -> (EL.Imm(Sexp.Float(loc, num1 +. num2)), true)
-              | "Float_-" -> (EL.Imm(Sexp.Float(loc, num1 -. num2)), true)
-              | "Float_*" -> (EL.Imm(Sexp.Float(loc, num1 *. num2)), true)
-              | "Float_/" -> (EL.Imm(Sexp.Float(loc, num1 /. num2)), true)
+              | "Float_+" -> (makeFloat loc (num1 +. num2), true)
+              | "Float_-" -> (makeFloat loc (num1 -. num2), true)
+              | "Float_*" -> (makeFloat loc (num1 *. num2), true)
+              | "Float_/" -> (makeFloat loc (num1 /. num2), true)
               | _ -> (e, false)
             )
         (* String functions *)
@@ -72,62 +95,77 @@ let rec constant_folding (e : EL.elexp) = match e with
           -> (EL.Imm(Sexp.String(loc, string_of_float num1)), true)
         | EL.Var ((loc, "String_eq"), _), [EL.Imm(Sexp.String(_, str1)); 
                                            EL.Imm(Sexp.String(_, str2))]
-          -> (mkBool (str1 = str2) loc, true)
-        (* We didn't find anything, look inside for opportunities, beware not to
-        mess the hasChanged boolean value! *)
-        | (_,_) -> let (f_e, f_hC) = constant_folding f in
-          let (args_e, args_hC) = constant_folding_elexps args in
-          (EL.Call(f_e, args_e), f_hC || args_hC)
+          -> (makeBool loc (str1 = str2), true)
+        (* We didn't find anything, look inside for opportunities if we are in a deep pass *)
+        | (_,_) ->
+          if deepOpt then
+            let (f_e, f_hC) = shallowOptimizeIfNeeded(cstfld f deepOpt) in
+            let (args_e, args_hC) = cstFoldElexps args deepOpt in
+            (EL.Call(f_e, args_e), f_hC || args_hC)
+          else
+            (e, false)
     )
 
     (* Nothing to do really aside from propagating the optimization, the hard
         part here is to not mess the hasChanged boolean value
        There are three helper function to do this right after *)
-    | EL.Lambda (vname, expr)
-      -> let (ret,hC) = constant_folding expr in
-      (EL.Lambda (vname, ret), hC)
+    | EL.Lambda (vname, expr) ->
+        if deepOpt then
+          let (ret,hC) = shallowOptimizeIfNeeded(cstfld expr deepOpt) in
+          (EL.Lambda (vname, ret), hC)
+        else
+          (e, false)
 
-    | EL.Let (loc, name_exprs, body)
-      -> let (body_e, body_hC) = constant_folding body in
-      let (name_exprs, name_exprs_hC)= constant_folding_name_exprs name_exprs in
-      (EL.Let(loc, name_exprs, body_e), body_hC || name_exprs_hC)
+    | EL.Let (loc, name_exprs, body) ->
+      if deepOpt then
+        let (body_e, body_hC) = shallowOptimizeIfNeeded(cstfld body deepOpt) in
+        let (name_exprs, name_exprs_hC)= cstFoldNameExprs name_exprs deepOpt in
+        (EL.Let(loc, name_exprs, body_e), body_hC || name_exprs_hC)
+      else
+        (e, false)
 
-    | EL.Case (l, e, branches, default)
-      -> let (e, ehC) = constant_folding e in
-      let (b, bhC) = constant_folding_branches branches in
-      let (d, dhC) = match default with
-        | None -> (None, false)
-        | Some (n,e)
-          -> let (d', dhC') = constant_folding e in (Some (n, d'), dhC')
-      in
-      (EL.Case(l, e, b, d), ehC || bhC || dhC)
+    | EL.Case (l, e, branches, default) ->
+      if deepOpt then
+        let (e, ehC) = shallowOptimizeIfNeeded(cstfld e deepOpt) in
+        let (b, bhC) = cstFoldBranches branches deepOpt in
+        let (d, dhC) = match default with
+          | None -> (None, false)
+          | Some (n,e)
+            -> let (d', dhC') = shallowOptimizeIfNeeded(cstfld e deepOpt) in (Some (n, d'), dhC')
+        in
+        (EL.Case(l, e, b, d), ehC || bhC || dhC)
+      else
+        (e, false)
     | _ -> (e, false)
 
-(* Every three next function takes a list or map as input and propagate
-   the constant_folding optimization to every constituants. If ever any of those
-   hasChanged (hC), returns true for the next optimization pass *)
-and constant_folding_elexps exprs = match exprs with
-  | [] -> ([], false)
-  | e :: es ->
-    let (e, hC) = constant_folding e in
-    let (es, hCs) = constant_folding_elexps es in
-    (e :: es, hC || hCs)
-and constant_folding_name_exprs name_exprs = match name_exprs with
-  | [] -> ([], false)
-  | (n, e) :: es ->
-    let (e, hC) = constant_folding e in
-    let (es, hCs) = constant_folding_name_exprs es in
-    ((n,e) :: es, hC || hCs)
-and constant_folding_branches branches =
-  let branches_list = Elexp.SMap.bindings branches in
-  let rec internal_fold lst = 
-    match lst with
-    | [] -> (Elexp.SMap.empty,false)
-    | (key, (l,n,e)) :: es ->
-      let (e, hC) = constant_folding e in
-      let (es, hCs) = internal_fold es in
-      (Elexp.SMap.add key (l,n,e) es, hC || hCs)
-  in internal_fold branches_list
+  (* Every three next function takes a list or map as input and propagate
+     the cst_fold optimization to every constituants. If ever any of those
+     hasChanged (hC), returns true for the next optimization pass *)
+  and cstFoldElexps exprs deepOpt = match exprs with
+    | [] -> ([], false)
+    | e :: es ->
+      let (e, hC) = shallowOptimizeIfNeeded(cstfld e deepOpt) in
+      let (es, hCs) = cstFoldElexps es deepOpt  in
+      (e :: es, hC || hCs)
+  and cstFoldNameExprs name_exprs deepOpt = match name_exprs with
+    | [] -> ([], false)
+    | (n, e) :: es ->
+      let (e, hC) = shallowOptimizeIfNeeded(cstfld e deepOpt) in
+      let (es, hCs) = cstFoldNameExprs es deepOpt in
+      ((n,e) :: es, hC || hCs)
+  and cstFoldBranches branches deepOpt =
+    let branches_list = Elexp.SMap.bindings branches in
+    let rec _cstFoldBranches lst = 
+      match lst with
+      | [] -> (Elexp.SMap.empty,false)
+      | (key, (l,n,e)) :: es ->
+        let (e, hC) = shallowOptimizeIfNeeded(cstfld e deepOpt) in
+        let (es, hCs) = _cstFoldBranches es in
+        (Elexp.SMap.add key (l,n,e) es, hC || hCs)
+    in _cstFoldBranches branches_list
+  in
+  (* Main call! *)
+  shallowOptimizeIfNeeded(cstfld e true)
 
 (* lookup for value of a variable in the given context and return that
  * value if it exists *)
@@ -166,8 +204,6 @@ let remove_names_in_ctx (name_exp_list : (EL.vname * EL.elexp) list)
                                                     (varname, value))
                                         ctx) (n+1) len)
     in helper name_exp_list ctx 0 (List.length name_exp_list)
-
-
 
 let rec constant_propagation
     (ctx : (string option * (EN.value_type ref)) M.myers)
