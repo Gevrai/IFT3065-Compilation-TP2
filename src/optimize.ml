@@ -4,11 +4,8 @@ module EL = Elexp
 module EN = Env
 module M = Myers
 
-
-
-
 (* Constant folding optimization, folding everything it can in one pass.
-   - TODO shallowChange : if the children of optimized elexp have already been checked,
+   - TODO TEST shallowChange : if the children of optimized elexp have already been checked,
        only do a shallow optimization pass when there is a modification
    - Returns tuple (optimizedElexp : Elexp.elexp, isModified : bool)
 *)
@@ -164,8 +161,11 @@ let constant_folding (e : EL.elexp) =
         (Elexp.SMap.add key (l,n,e) es, hC || hCs)
     in _cstFoldBranches branches_list
   in
-  (* Main call! *)
-  shallowOptimizeIfNeeded(cstfld e true)
+  (* Main call! We don't care if shallow opt returns true because if should be
+  the last possible optimization *)
+  let (elexp, hasChanged) = shallowOptimizeIfNeeded(cstfld e true) in
+  (elexp, !globalModified)
+
 
 (* lookup for value of a variable in the given context and return that
  * value if it exists *)
