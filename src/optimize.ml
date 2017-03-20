@@ -193,16 +193,13 @@ let remove_names_in_ctx (name_exp_list : (EL.vname * EL.elexp) list)
         if n = len then ctx else
           match List.nth name_exp_list n with
           | ((_, name), valref)
-                -> (match M.find (fun (s, _) -> s = Some name) ctx with
-                        | None -> helper l ctx (n+1) len
-                        | Some _
-                            -> (* eliminate the variable from the context *)
-                                        helper l (M.map (fun (varname, value) ->
-                                                if varname = Some name then
-                                                    (None, value)
-                                                else
-                                                    (varname, value))
-                                        ctx) (n+1) len)
+                -> (* eliminate the variable from the context *)
+                    helper l (M.map (fun (varname, value) ->
+                            if varname = Some name then
+                                (None, value)
+                            else
+                                (varname, value))
+                    ctx) (n+1) len
     in helper name_exp_list ctx 0 (List.length name_exp_list)
 
 let rec constant_propagation
@@ -292,4 +289,3 @@ let rec optimize (ctx : (string option * (EN.value_type ref)) M.myers)
   let prop = constant_propagation ctx e in
   let (folded, hasChanged) = constant_folding prop in
   if hasChanged then optimize ctx folded else folded
-
