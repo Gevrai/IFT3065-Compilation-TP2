@@ -220,12 +220,16 @@ let rec constant_propagation
             -> (match lookup_ctx ctx varname with
                     | None -> e
                     | Some value -> (match value with
-                        | EN.Vint i    -> EL.Imm
-                            (Sexp.Integer (Util.dummy_location, i))
-                        | EN.Vstring s -> EL.Imm
-                            (Sexp.String (Util.dummy_location, s))
-                        | EN.Vfloat f  -> EL.Imm
-                            (Sexp.Float (Util.dummy_location,f))
+                        | EN.Vint i    
+                            -> EL.Imm (Sexp.Integer (loc, i))
+                        | EN.Vstring s 
+                            -> EL.Imm (Sexp.String (loc, s))
+                        | EN.Vfloat f  
+                            -> EL.Imm (Sexp.Float (loc,f))
+                        | EN.Vcons ((_, "true"), [])
+                            -> EL.Imm (Sexp.Symbol(loc, "true"))
+                        | EN.Vcons ((_, "false"), [])
+                            -> EL.Imm (Sexp.Symbol(loc, "false"))
                         | _ -> e))
 
         | EL.Call (f, args)
@@ -233,13 +237,13 @@ let rec constant_propagation
                                         List.map (constant_propagation ctx)
                                             args)
 
-        | EL.Lambda ((_, varname), expr)
+        | EL.Lambda ((loc, varname), expr)
             -> (match lookup_ctx ctx varname with
                     | None
-                        -> EL.Lambda ((Util.dummy_location, varname),
+                        -> EL.Lambda ((loc, varname),
                                 constant_propagation ctx expr)
                     | Some _
-                        -> EL.Lambda ((Util.dummy_location, varname),
+                        -> EL.Lambda ((loc, varname),
                                 constant_propagation
                                 (* eliminate the variable from the
                                  * context *)

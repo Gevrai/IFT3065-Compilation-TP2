@@ -54,6 +54,19 @@ récursive sur ses sous-expressions comme c'est le cas pour le constant folding.
 
 
 \section{Constant folding}
+
+\section{Évaluation de performances}
+
+Pour tester la diminition du temps d'exécution engendrer par les optimisations
+nous avons écrit un script en langage typer qui définit une vingtaine de
+constantes, une fonction qui effectue un gros calcul arithmétique avec l'aide
+de ces constantes et puis finalement une autre fonction qui va effectuer de
+manière récursive des appels à la première fonction. Nous avons ensuite 
+mesuré le temps d'exécution d'un appel à cette deuxième fonction avec comme
+paramètre un très grand nombre et avons fait la comparaison avec et sans les
+optimisations. Nous avons obtenue que le temps d'exécution est deux fois plus
+grand sans les optimisations que avec celles-ci.
+
 \begin{thebibliography}{9}
 
 \bibitem{realworldocaml}
