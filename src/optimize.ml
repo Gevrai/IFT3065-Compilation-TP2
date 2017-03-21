@@ -161,7 +161,7 @@ let constant_folding (e : EL.elexp) =
         (Elexp.SMap.add key (l,n,e') es', hC || hCs)
     in _cstFoldBranches branches_list
   in
-  (* Main call! We don't care if shallow optimization returns true because if
+  (* Main call! We don't care if shallow optimization returns true because it
      should be the last possible optimization *)
   let (optimizedElexp, hasChanged) = shallowOptimizeIfNeeded(cstfld e true) in
   (optimizedElexp, !globalModified)
