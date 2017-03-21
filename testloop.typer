@@ -1,0 +1,100 @@
+const1 : Int;
+const1 = 200;
+
+const2 : Int;
+const2 = 300;
+
+const3 : Int;
+const3 = 400;
+
+const4 : Int;
+const4 = 500;
+
+const5 : Int;
+const5 = 900;
+
+const6 : Int;
+const6 = 100;
+
+const7 : Int;
+const7 = 200;
+
+const8 : Int;
+const8 = 300;
+
+const9 : Int;
+const9 = 400;
+
+const10 : Int;
+const10 = 500;
+
+const11 : Int;
+const11 = 900;
+
+const12 : Int;
+const12 = 100;
+
+const13 : Int;
+const13 = 200;
+
+const14 : Int;
+const14 = 300;
+
+const15 : Int;
+const15 = 400;
+
+const16 : Int;
+const16 = 500;
+
+const17 : Int;
+const17 = 900;
+
+const18 : Int;
+const18 = 100;
+
+const19 : Int;
+const19 = 200;
+
+const20 : Int;
+const20 = 300;
+
+const21 : Int;
+const21 = 400;
+
+const22 : Int;
+const22 = 500;
+
+const23 : Int;
+const23 = 900;
+
+const24 : Int;
+const24 = 100;
+
+foo : Int -> Int;
+foo x = x + const1 + const2 + const3 + const4 + const5 + const6
+* const7 * const8 * const9 * const10 * const11 * const12
++ const13 + const14 + const15 + const16 + const17 + const18
+* const19 * const20 * const21 * const22 * const23 * const24;
+
+fooloop : (Int -> Int) -> Int -> Int -> Int -> Int;
+fooloop f x y z = case Int_< x y
+    | true => fooloop f (x + 1) y (f z)
+    | false => z;
+
+%% Code qui exécute le test, mesure le temps et l'imprime.
+testcmd : IO Unit;
+testcmd =
+  IO_bind
+      (Sys_cpu_time ())
+      (lambda t_start ->
+       let x = fooloop foo 0 10000 0
+       in IO_bind
+              (Sys_cpu_time ())
+              (lambda t_end ->
+               let t = Float_- t_end t_start;
+                   stdout = File_stdout ()
+               in IO_bind (File_write stdout (Float_to_string t))
+                          (lambda _ -> File_write stdout "\n")));
+
+test : Unit;
+test = IO_run testcmd ();
