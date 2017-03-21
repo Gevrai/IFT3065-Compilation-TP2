@@ -115,7 +115,9 @@ let constant_folding (e : EL.elexp) =
     | EL.Lambda (vname, expr) ->
         if deepOpt then
           let (ret,hC) = shallowOptimizeIfNeeded(cstfld expr deepOpt) in
-          (EL.Lambda (vname, ret), hC)
+          (* (EL.Lambda (vname, ret), hC) *)
+          (* no further optimization possible even if we changed something *)
+          (EL.Lambda (vname, ret), false)
         else
           (e, false)
 
@@ -123,7 +125,9 @@ let constant_folding (e : EL.elexp) =
       if deepOpt then
         let (body_e, body_hC) = shallowOptimizeIfNeeded(cstfld body deepOpt) in
         let (name_exprs', name_exprs_hC)= cstFoldNameExprs name_exprs deepOpt in
-        (EL.Let(loc, name_exprs', body_e), body_hC || name_exprs_hC)
+        (* (EL.Let(loc, name_exprs', body_e), body_hC || name_exprs_hC) *)
+        (* no further optimization possible even if we changed something *)
+        (EL.Let(loc, name_exprs', body_e), false)
       else
         (e, false)
 
@@ -136,7 +140,9 @@ let constant_folding (e : EL.elexp) =
           | Some (n,ex)
             -> let (d', dhC') = shallowOptimizeIfNeeded(cstfld ex deepOpt) in (Some (n, d'), dhC')
         in
-        (EL.Case(l, e', b, d), ehC || bhC || dhC)
+        (* (EL.Case(l, e', b, d), ehC || bhC || dhC) *)
+        (* no further optimization possible even if we changed something *)
+        (EL.Case(l, e', b, d), false)
       else
         (e, false)
     | _ -> (e, false)
