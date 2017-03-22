@@ -21,7 +21,7 @@ Nous avons choisi des optimisations qui se complémentaient le plus possible,
 c'est à dire le 'constant folding' ainsi que la propagation de constantes.
 Ces deux types d'optimisations sont très complémentaires, puisqu'après chaque
 passe de l'une des optimisations, il y a de bonnes chances que ceci ait ouvert
-de nouvelles oppotunitées pour l'autre.
+de nouvelles opportunitées pour l'autre.
 
 \paragraph{}
 Ainsi, l'un des problèmes auquel nous avons fait face était l'ordonnancement
@@ -29,22 +29,22 @@ de ces optimisations, mais aussi de s'assurer qu'il ne reste plus rien à
 'fold' ou propager.
 
 \paragraph{}
-Ensuite, puisque nous considérions ces optimisations comme étant en fait une
-seule ayant trait aux variables, nous avons tenté l'élimination de code mort
-dans les 'case'. En fait, nous avons réellement vu cette élimination comme
+Ensuite, nous avons tenté l'élimination de code mort dans les 'case', sur des
+'cons' simple. En fait, nous avons réellement vu cette élimination comme
 une sorte de 'folding', puisque l'on précalcule la branche à l'avance si le
-case se fait sur une constante. Cette optimisation est des plus utile après
-la propagation et le 'folding' des constantes et c'est pourquoi nous l'avons
-choisi.
+case se fait sur une constante. Cette optimisation n'est en général utile
+qu'après la propagation et le 'folding' des constantes et c'est pourquoi nous 
+l'avons choisi.
 
 \section{Constantes et variables immuables}
 \subsection{Constant folding}
 
 Dans sa forme la plus simple, cette optimisation est très facile à implémenter.
-En effet, nous avons des cas de bases, transformant une expression 'Elexp.Call'
+En effet, nous avons des cas de base, transformant une expression 'Elexp.Call'
 contenant potentiellement des constantes 'Elexp.Imm', en une simple constante
 immuable (précomputation) ou bien en une expression de base (élimination d'une
-addition par zéro, d'une mutiplication par un,etc). Ceci se résume en une
+addition par zéro, d'une mutiplication par un,etc) ou même en une constante
+égale à zéro (multiplication par zéro). Ceci se résume en une
 vingtaine de cas qui sont véritablement le coeur du 'folding' de constante.
 
 \paragraph{}
@@ -60,10 +60,21 @@ recommence jusqu'à ce qu'une passe renvoie 'false' et ainsi on a terminé.
 Évidement, ceci peut s'avérer très inneficace, étant O($n^2$) en pire cas.
 
 \paragraph{}
+Dans le but d'améliorer cette complexité, dès qu'un appel à \emph{constantfold}
+se rend compte qu'il y a eut un changement dans l'un de ces enfants, il retente
+une \emph{shallow optimization}. En effet, une nouvelle opportunitée
+d'optimisation ne peut être possible que dans un enfant immédiat, puisque chacun
+s'assure de bel et bien d'en effectuer le maximum. Ainsi, la complexité tombe à
+O($n$) en pire cas, car il ne suffit qu'une seule passe et visite à chacun des
+noeuds.
+
+\paragraph{}
 Pour ce qui est de gérer un cas comme celui de type : \textbf{if} true
 \textbf{then} e1 \textbf{else} e2 $=>$ e1, le langage Typer n'a pas de
 syntaxe pour les if toutefois il est possible d'arriver au même effet
-avec les Case. Nous avons donc implémenté ce type d'optimisation pour les Case 
+avec les Case. Nous avons donc implémenté ce type d'optimisation pour les Case,
+en généralisant par le fait même cette optimisation sur les 'cons' simple,
+c'est à dire seul.
 
 \subsection{Propagation de constante}
 
@@ -90,23 +101,27 @@ Les types d'expression qui peuvent être propagé sont les entiers, les nombres
 Il est également intéressant de constater que la propagation de constante est
 très similaire au inlining de fonctions. Nous n'avons pas implémenté cette
 optimisation étant donné que nous n'en avions que deux à faire toutefois si
-nous devions la faire il aurait suffit d'agrandir la fonction principale de
+nous devions la faire il aurait fallu agrandir la fonction principale de
 la propagation de constante et ajouter comme cas que lorsqu'on reçoit un elexp
 de type Call on fait un lookup dans le contexte et si on le trouve avec comme
 valeur un type EN.Closure alors on retournerait le body de cette fermeture dans
 lequel on aurait propagé son paramètre avec l'expression du deuxième argument
-du Call.
+du Call. Évidemment, nous aurions dû faire une certaine analyse du code pour
+s'assurer de ne pas faire cette optimisation sur une fonction récursive, se qui
+causerait une explosion du code, ou bien sur une fonction trop grande, rendant
+le coût de l'appel négligeable.
 
 \section{Évaluation de performances}
 
-Pour tester la diminition du temps d'exécution engendrer par les optimisations
+Pour tester la diminition du temps d'exécution engendré par les optimisations
 nous avons écrit un script en langage typer qui définit une vingtaine de
 constantes, une fonction qui effectue un gros calcul arithmétique avec l'aide
 de ces constantes et puis finalement une autre fonction qui va effectuer de
 manière récursive des appels à la première fonction. Nous avons ensuite 
 mesuré le temps d'exécution d'un appel à cette deuxième fonction avec comme
 paramètre un très grand nombre et avons fait la comparaison avec et sans les
-optimisations. Nous avons obtenue que le temps d'exécution est deux fois plus
+optimisations. En moyenne, nous avons obtenue que le temps d'exécution est
+deux fois plus
 grand sans les optimisations que avec celles-ci soit 0.26 secondes avec les 
 optimisations et 0.54 sans les optimisations sur une machine avec une
 processeur Intel i5-5200U. Si on ne fait que l'optimisation de la propagation
@@ -116,14 +131,14 @@ soit le même temps que sans les optimisation ce qui est normal étant donné qu
 il n'y a aucune possibilité de folding si les constantes ne sont pas propagés.
 On voit donc que dans ce scripts le constant folding en lui-même est peu utile
 mais que combiné avec la propagation il permet d'obtenir un meilleur résultat
-que la propagation de constante seule. Le fichier de scripts pour ces tests
+que la propagation de constante seule. Le fichier de script pour ces tests
 se nomme "testloop.typer"
 
 \paragraph{}
 Nous avons également fait un autre script Typer afin de tester l'amélioration
 de performance apporté par le constant folding sans propagation de constante.
 Ce script profite aussi de l'optimisation du constant folding sur le Case.
-Toujours sur le même processeur nous avons obtenues des temps des temps de
+Toujours sur le même processeur nous avons obtenu des temps de
 l'ordre de 0.43 avec les optimisations et sans les optimisations les temps
 d'exécution sont de l'ordre de 0.64 secondes. Le fichier pour ces test 
 s'appelle "folding\_test.typer".
