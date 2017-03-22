@@ -60,6 +60,13 @@ let constant_folding (e : EL.elexp) =
           then let (e,hC) = shallowOptimizeIfNeeded (cstfld expr deepOpt) in
             (e, true)
           else (expr, true)
+        (* 0*e -> 0 *)
+        | (EL.Var ((loc, "_*_"), _), [ EL.Imm(Sexp.Integer(_,0)); expr])
+        | (EL.Var ((loc, "_*_"), _), [ expr; EL.Imm(Sexp.Integer(_,0)) ])
+          -> globalModification (); (EL.Imm(Sexp.Integer(loc,0)), true)
+        | (EL.Var ((loc, "Float_*"), _), [ EL.Imm(Sexp.Float(_,0.0)); expr])
+        | (EL.Var ((loc, "Float_*"), _), [ expr; EL.Imm(Sexp.Float(_,0.0)) ])
+          -> globalModification (); (EL.Imm(Sexp.Float(loc,0.0)), true)
     (* If we know the values of both side of the operation we precompute them *)
         (* Int 'op' Int -> Int  *)
         | EL.Var ((loc, op_str), _ ), [EL.Imm(Sexp.Integer(_, num1));
