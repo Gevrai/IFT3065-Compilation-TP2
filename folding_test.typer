@@ -1,0 +1,31 @@
+%% Simple tests for trivial optimizations
+
+foo : Int -> Int;
+foo x = case true
+  | true => x + 0 - 4 + 3 + 7 * 2 / 8 + 3 * 9 - 3 * 6 - 8
+  | _ => 0;
+
+fooloop : (Int -> Int) -> Int -> Int -> Int -> Int;
+fooloop f x y z = case Int_< x y
+    | true => fooloop f (x + 1) y (f z)
+    | false => z;
+
+%% Code qui exécute le test, mesure le temps et l'imprime.
+testcmd : IO Unit;
+testcmd =
+  IO_bind
+      (Sys_cpu_time ())
+      (lambda t_start ->
+       let x = fooloop foo 0 20000 0
+       in IO_bind
+              (Sys_cpu_time ())
+              (lambda t_end ->
+               let t = Float_- t_end t_start;
+                   stdout = File_stdout ()
+               in IO_bind (File_write stdout (Float_to_string t))
+                          (lambda _ -> File_write stdout "\n")));
+
+test : Unit;
+test = IO_run testcmd ();
+test = IO_run testcmd ();
+test = IO_run testcmd ();
