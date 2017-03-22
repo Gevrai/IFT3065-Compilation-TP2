@@ -151,7 +151,7 @@ let constant_folding (e : EL.elexp) =
               (* Should normally have failed during parsing... *)
               | None -> raise (Failure ("Invalid Case: No branching with" ^ name))
             )
-        in
+        in let (branch, hC) = shallowOptimizeIfNeeded(cstfld branch deepOpt) in
         (branch, true)
       | _ ->
         if deepOpt then
