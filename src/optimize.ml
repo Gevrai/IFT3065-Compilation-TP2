@@ -24,7 +24,9 @@ let constant_folding (e : EL.elexp) =
   let makeBool loc cond =
     let s = if cond then "true" else "false" in
     globalModification ();
-    EL.Imm(Sexp.Symbol(loc, s)) in
+    EL.Cons((loc, s)) in
+    (* EL.Imm(Sexp.Symbol(loc, s)) in *)
+    (* EL.Var((loc, s), dBi) in *)
 
   (* From (elexp, hasChanged) tuple, only optimize the immediate children since
      there can only be new opportunities there, not deeper *)
@@ -138,20 +140,34 @@ let constant_folding (e : EL.elexp) =
       else
         (e, false)
 
-    | EL.Case (l, exp, branches, default) ->
-      if deepOpt then
-        let (e', ehC) = shallowOptimizeIfNeeded(cstfld exp deepOpt) in
-        let (b, bhC) = cstFoldBranches branches deepOpt in
-        let (d, dhC) = match default with
-          | None -> (None, false)
-          | Some (n,ex)
-            -> let (d', dhC') = shallowOptimizeIfNeeded(cstfld ex deepOpt) in (Some (n, d'), dhC')
+    | EL.Case (l, exp, branches, default) -> (match exp with
+        (* Finding the correct branch if we already know the exp value, currently
+           only works for simple cons only ! *)
+      | EL.Cons(_, name) ->
+        let branch = try
+            let (_,_,e) = EL.SMap.find name branches in e
+          with Not_found -> (match default with
+              | Some (_,d) -> d
+              (* Should normally have failed during parsing... *)
+              | None -> raise (Failure ("Invalid Case: No branching with" ^ name))
+            )
         in
-        (* (EL.Case(l, e', b, d), ehC || bhC || dhC) *)
-        (* no further optimization possible even if we changed something *)
-        (EL.Case(l, e', b, d), false)
-      else
-        (e, false)
+        (branch, true)
+      | _ ->
+        if deepOpt then
+          let (e', ehC) = shallowOptimizeIfNeeded(cstfld exp deepOpt) in
+          let (b, bhC) = cstFoldBranches branches deepOpt in
+          let (d, dhC) = match default with
+            | None -> (None, false)
+            | Some (n,ex)
+              -> let (d', dhC') = shallowOptimizeIfNeeded(cstfld ex deepOpt) in (Some (n, d'), dhC')
+          in
+          (* (EL.Case(l, e', b, d), ehC || bhC || dhC) *)
+          (* no further optimization possible even if we changed something *)
+          (EL.Case(l, e', b, d), false)
+        else
+          (e, false)
+      )
     | _ -> (e, false)
 
   (* next functions take a list or map as input and propagate
@@ -227,16 +243,14 @@ let rec constant_propagation
             -> (match lookup_ctx ctx varname with
                     | None -> e
                     | Some value -> (match value with
-                        | EN.Vint i    
+                        | EN.Vint i
                             -> EL.Imm (Sexp.Integer (loc, i))
-                        | EN.Vstring s 
+                        | EN.Vstring s
                             -> EL.Imm (Sexp.String (loc, s))
-                        | EN.Vfloat f  
+                        | EN.Vfloat f
                             -> EL.Imm (Sexp.Float (loc,f))
-                        | EN.Vsexp (Sexp.Symbol (_, "true"))
-                            -> EL.Imm (Sexp.Symbol(loc, "true"))
-                        | EN.Vsexp (Sexp.Symbol (_, "false"))
-                            -> EL.Imm (Sexp.Symbol(loc, "false"))
+                        | EN.Vcons((_, name), [])
+                            -> EL.Cons((loc,name))
                         | _ -> e))
 
         | EL.Call (f, args)
