@@ -233,9 +233,9 @@ let rec constant_propagation
                             -> EL.Imm (Sexp.String (loc, s))
                         | EN.Vfloat f  
                             -> EL.Imm (Sexp.Float (loc,f))
-                        | EN.Vcons ((_, "true"), [])
+                        | EN.Vsexp (Sexp.Symbol (_, "true"))
                             -> EL.Imm (Sexp.Symbol(loc, "true"))
-                        | EN.Vcons ((_, "false"), [])
+                        | EN.Vsexp (Sexp.Symbol (_, "false"))
                             -> EL.Imm (Sexp.Symbol(loc, "false"))
                         | _ -> e))
 

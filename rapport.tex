@@ -18,7 +18,7 @@ Nous avons choisi des optimisations qui se complémentaient le plus possible, c'
 
 Ainsi, l'un des problèmes auquel nous avons fait face était l'ordonnancement de ces optimisations, mais aussi de s'assurer qu'il ne reste plus rien à 'fold' ou propager.
 
-Ensuite, puisque nous considérions ces optimisations comme étant en fait une seule ayant trait aux variables, nous avons tenté l'élimination de code mort dans les 'case' et les 'let'. Cette optimisation est des plus utile après la propagation et le 'folding' des constantes et c'est pourquoi nous l'avons choisi.
+Ensuite, puisque nous considérions ces optimisations comme étant en fait une seule ayant trait aux variables, nous avons tenté l'élimination de code mort dans les 'case'. En fait, nous avons réellement vu cette élimination comme une sorte de 'folding', puisque l'on précalcule la branche à l'avance si le case se fait sur une constante. Cette optimisation est des plus utile après la propagation et le 'folding' des constantes et c'est pourquoi nous l'avons choisi.
 
 \section{Constantes et variables immuables}
 \subsection{Constant folding}
@@ -47,11 +47,6 @@ dans le fichier "myers.ml" effectue une recherche dichotomique sur la liste ce
 qui n'est pas approprié pour le contexte étant donné que les élément ne sont
 pas triés. De plus la propagation de constante doit s'effectuer de manière 
 récursive sur ses sous-expressions comme c'est le cas pour le constant folding.
-
-\section{Élimination de code mort}
-
-
-
 
 \section{Constant folding}
 
