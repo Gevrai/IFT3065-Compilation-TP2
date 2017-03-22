@@ -5,12 +5,9 @@ module EN = Env
 module M = Myers
 
 (* Constant folding optimization, folding everything it can in one pass.
-   - TODO TEST shallowChange : if the children of optimized elexp have already been checked,
-       only do a shallow optimization pass when there is a modification
-   - Returns tuple (optimizedElexp : Elexp.elexp, isModified : bool)
-*)
+   - Returns tuple (optimizedElexp : Elexp.elexp, isModified : bool) *)
 let constant_folding (e : EL.elexp) =
-  (* If at any time in the optimization pass we modify something, this is 'true' *)
+  (* true if at any time in the optimization pass we modify something *)
   let globalModified = ref false in
   let globalModification () = globalModified := true; () in
 
@@ -25,8 +22,6 @@ let constant_folding (e : EL.elexp) =
     let s = if cond then "true" else "false" in
     globalModification ();
     EL.Cons((loc, s)) in
-    (* EL.Imm(Sexp.Symbol(loc, s)) in *)
-    (* EL.Var((loc, s), dBi) in *)
 
   (* From (elexp, hasChanged) tuple, only optimize the immediate children since
      there can only be new opportunities there, not deeper *)
@@ -117,6 +112,20 @@ let constant_folding (e : EL.elexp) =
           else
             (e, false)
     )
+    (* Finding the correct branch if we already know the exp value, currently
+       only works for simple cons only ! *)
+    | EL.Case (l, EL.Cons(_, name), branches, default) -> (
+        let branch = try
+            let (_,_,e) = EL.SMap.find name branches in e
+          with Not_found -> (match default with
+              | Some (_,d) -> d
+              (* Should normally have failed during parsing... *)
+              | None -> raise (Failure ("Invalid Case: Can't branche with"
+                                        ^ name))
+            )
+        in let (branch, hC) = shallowOptimizeIfNeeded(cstfld branch deepOpt) in
+        (branch, true)
+      )
 
     (* Nothing to do really aside from propagating the optimization, the hard
         part here is to not mess the hasChanged boolean value
@@ -140,34 +149,21 @@ let constant_folding (e : EL.elexp) =
       else
         (e, false)
 
-    | EL.Case (l, exp, branches, default) -> (match exp with
-        (* Finding the correct branch if we already know the exp value, currently
-           only works for simple cons only ! *)
-      | EL.Cons(_, name) ->
-        let branch = try
-            let (_,_,e) = EL.SMap.find name branches in e
-          with Not_found -> (match default with
-              | Some (_,d) -> d
-              (* Should normally have failed during parsing... *)
-              | None -> raise (Failure ("Invalid Case: No branching with" ^ name))
-            )
-        in let (branch, hC) = shallowOptimizeIfNeeded(cstfld branch deepOpt) in
-        (branch, true)
-      | _ ->
-        if deepOpt then
-          let (e', ehC) = shallowOptimizeIfNeeded(cstfld exp deepOpt) in
-          let (b, bhC) = cstFoldBranches branches deepOpt in
-          let (d, dhC) = match default with
-            | None -> (None, false)
-            | Some (n,ex)
-              -> let (d', dhC') = shallowOptimizeIfNeeded(cstfld ex deepOpt) in (Some (n, d'), dhC')
-          in
-          (* (EL.Case(l, e', b, d), ehC || bhC || dhC) *)
-          (* no further optimization possible even if we changed something *)
-          (EL.Case(l, e', b, d), false)
-        else
-          (e, false)
-      )
+    | EL.Case (l, exp, branches, default) ->
+      if deepOpt then
+        let (e', ehC) = shallowOptimizeIfNeeded(cstfld exp deepOpt) in
+        let (b, bhC) = cstFoldBranches branches deepOpt in
+        let (d, dhC) = match default with
+          | None -> (None, false)
+          | Some (n,ex)
+            -> let (d', dhC') = shallowOptimizeIfNeeded(cstfld ex deepOpt) in
+            (Some (n, d'), dhC')
+        in
+        (* (EL.Case(l, e', b, d), ehC || bhC || dhC) *)
+        (* no further optimization possible even if we changed something *)
+        (EL.Case(l, e', b, d), false)
+      else
+        (e, false)
     | _ -> (e, false)
 
   (* next functions take a list or map as input and propagate
@@ -292,17 +288,6 @@ let rec constant_propagation
                 | None -> None
                 | Some (n, e) -> Some (n, constant_propagation ctx e)))
         | _ -> e
-
-(* let rec case_reduction *)
-(*     (ctx : (string option * (EN.value_type ref)) M.myers) (e : EL.elexp) *)
-(*         : EL.elexp = match e with *)
-(*   | EL.Case (loc, exp, branches, default) *)
-(*     -> match exp with *)
-(*       | EL.Cons(loc, cname) -> *)
-
-(*     let goodBranch = *)
-(*   | _ -> e *)
-
 
 (* Vous recevez:
  * - une expression `e` de type `elexp` (défini dans elexp.ml)
