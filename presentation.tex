@@ -117,8 +117,7 @@ Université de Montréal \\ % Your institution for the title page
 %------------------------------------------------
 \subsection{Choix d'optimisations} 
 
-\begin{frame}
-\frametitle{Choix d'optimisations}
+\begin{frame}{Choix d'optimisations}
 
 \pause
 
@@ -140,51 +139,123 @@ Choix finaux:
   Constant folding et propagation de constantes se complémentent extrêmement bien
 \end{frame}
 
+%---------------------------------------------------------------
 \subsection{Constant Folding} 
+%---------------------------------------------------------------
 
-\begin{frame}
-\frametitle{Cas de base - Entiers et Flottants}
+\begin{frame}{Cas de base - Appels sur Entiers et Flottants}
 Opérations triviales 
   \begin{multicols}{3}
   \begin{itemize}
-    \item $e + 0 \rightarrow e $
-    \item $e - 0 \rightarrow e $
-    \item $e * 1 \rightarrow e $
-    \item $e \div 1 \rightarrow e $
-    \item $e * 0 \rightarrow 0 $
-    \item $0 \div e \rightarrow 0 $
+    \item $e + 0 \Rightarrow e $
+    \item $e - 0 \Rightarrow e $
+    \item $e * 1 \Rightarrow e $
+    \item $e \div 1 \Rightarrow e $
+    \item $e * 0 \Rightarrow 0 $
+    \item $0 \div e \Rightarrow 0 $
   \end{itemize}
   \end{multicols}
 
 Précalcul d'expressions
   \begin{multicols}{2}
   \begin{itemize}
-    \item $ 1 + 2 \rightarrow 3 $
-    \item $ 2 - 2 \rightarrow 0 $
-    \item $ 2 * 2 \rightarrow 4 $
-    \item $ 2 / 2 \rightarrow 1 $
-    \item $ Int\_>$ 1 2 $\rightarrow$ \emph{false}
-    \item $ Int\_<$ 1 2 $\rightarrow$ \emph{true}
-    \item $ Int\_eq$ 1 2 $\rightarrow$ \emph{false}
-    \item $ Int\_>=$ 1 2 $\rightarrow$ \emph{false}
-    \item $ Int\_<=$ 1 2 $\rightarrow$ \emph{true}
-  \end{itemize}
-  \end{multicols}
-
-Opérations sur les chaînes de caractères
-  \begin{multicols}{2}
-  \begin{itemize}
-    \item Float\_to\_string 1 $\rightarrow$ '1'
-    \item String\_eq 'a' 'a' $\rightarrow$ true 
+    \item $ 1 + 2 \Rightarrow 3 $
+    \item $ 2 - 2 \Rightarrow 0 $
+    \item $ 2 * 2 \Rightarrow 4 $
+    \item $ 2 / 2 \Rightarrow 1 $
+    \item $ Int\_>$ 1 2 $\Rightarrow$ \emph{false}
+    \item $ Int\_<$ 1 2 $\Rightarrow$ \emph{true}
+    \item $ Int\_eq$ 1 2 $\Rightarrow$ \emph{false}
+    \item $ Int\_>=$ 1 2 $\Rightarrow$ \emph{false}
+    \item $ Int\_<=$ 1 2 $\Rightarrow$ \emph{true}
   \end{itemize}
   \end{multicols}
 
 \end{frame}
 
-%------------------------------------------------
+%---------------------------------------------------------------
+\begin{frame}{Cas de base - Autres elexp}
+Autres opérations
+  \begin{itemize}
+    \item Float\_to\_string 1 $\Rightarrow$ '1'
+    \item String\_eq 'a' 'a' $\Rightarrow$ true 
+    \item case true $\mid$ true $\rightarrow$ e $\mid$ \_ $\rightarrow$ ... \\ $\Rightarrow$ e
+  \end{itemize}
+\end{frame}
+%---------------------------------------------------------------
+\begin{frame}{Version Naïve}
+  Propager l'optimisation dans les enfants
+  \begin{itemize}
+  \item Elexp.Case(l, e, branches, default)
+    \\ $\Rightarrow$ Elexp.Case(l, cstfld e, cstfld branches, cstfld default)
+  \item Elexp.Lambda(name, e) $\Rightarrow$ Elexp.Lambda(name, cstfld e)
+  \item Elexp.Let(l, nexprs, body) \\ $\Rightarrow$ Elexp.Let(l, cstfld nexprs, cstfld body)
+  \end{itemize}
+\pause
+N'affecte que les feuilles!
+\end{frame}
+%---------------------------------------------------------------
+\begin{frame}{Version Simple et complète}
+  La fonction \emph{cstfld} renvoie un boolean \emph{true} si changée \\
+  $\rightarrow$ \emph{optimize} rappelle \emph{cstfld} dans ce cas.
+  \pause
+  \begin{itemize}
 
-\begin{frame}
-\frametitle{Autres types d'elexp}
+    \item Avantages
+      \begin{itemize}
+        \item Facile à implémenter
+        \item Renvoie un elexp complètement \emph{fold}
+        \item \emph{optimize} peut rappeler la propagation de constante
+      \end{itemize}
+  \pause
+    \item Désavantages
+      \begin{itemize}
+        \item Complexité algorithmique en pire cas de O($n^2$)
+        \item Rappel des autres optimisations après chaque passe
+      \end{itemize}
+
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Notre solution - One pass optimization}
+  Chaque noeud rappelle l'optimisation si changement. \\
+  $\rightarrow$ Besoin d'une seule passe à travers l'arbre de elexp
+  % \\ Boolean 'global' renvoyé: changement à eu lieu n'importe où?
+  \pause
+  \begin{itemize}
+
+    \item Avantages
+      \begin{itemize}
+        \item Complexité algorithmique en pire cas de O($2n$)
+        \item \emph{optimize} peut rappeler la propagation de constante plus
+          efficacement (\emph{fold} complet)
+      \end{itemize}
+  \pause
+    \item Désavantages
+      \begin{itemize}
+        \item Changement global représenté par une variable mutable
+        \item Cas plus difficiles à gérer
+      \end{itemize}
+
+  \end{itemize}
+\end{frame}
+%---------------------------------------------------------------
+\subsection{Propagation de constantes} 
+%---------------------------------------------------------------
+
+\begin{frame}{Propagation de constantes}
+\end{frame}
+
+% %---------------------------------------------------------------
+\section{Résultats}
+% %---------------------------------------------------------------
+
+\begin{frame}{Fichier de tests}
+  Fichier de test
+\end{frame}
+
+\begin{frame}{Performances}
+  Tableau des performances
 \end{frame}
 
 \end{document} 
