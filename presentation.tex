@@ -239,23 +239,88 @@ N'affecte que les feuilles!
 
   \end{itemize}
 \end{frame}
+
 %---------------------------------------------------------------
 \subsection{Propagation de constantes} 
 %---------------------------------------------------------------
 
-\begin{frame}{Propagation de constantes}
+\begin{frame}
+\frametitle{Propagation de constantes}
+Comment faire la propagation de constantes?\\
+Par exemple sur le code suivant:\\
+$x = 1;$\\
+\bigskip
+$y = x + 2;$\\
+\bigskip
+on veut que la deuxième expression devienne \\
+$y = 1 + 2;$\\
+
 \end{frame}
-
-% %---------------------------------------------------------------
-\section{Résultats}
-% %---------------------------------------------------------------
-
-\begin{frame}{Fichier de tests}
-  Fichier de test
+%---------------------------------------------------------------
+\begin{frame}
+\frametitle{Solution}
+    \begin{itemize}
+        \item Lorsqu'on a une expression de type variable on cherche dans le contexte si cette variable a été définie.
+        \item Si oui alors on vérifie la valeur associé à cette variable et on retourne une expression correspondante à cette valeur.
+        \item sinon on retourne l'expression tel quelle.
+    \end{itemize}
 \end{frame}
+%---------------------------------------------------------------
+\begin{frame}
+    \frametitle{Quelques cas problématiques}
+    x = 1; \\
+    \bigskip
+    f : Int -$>$ Int;\\
+    f x = x * x;\\
+    \bigskip
+    g = let x = 3 in x * 2;\\
+    \bigskip
+    Solution : il faut enlever du contexte la paire de x avec la référence vers sa valeur lorsqu'on fait un appel récursive
+    de la fonction sur le body de la fonction ou du let.
+\end{frame}
+%---------------------------------------------------------------
+\subsection{Tests de performance}
+%---------------------------------------------------------------
+\begin{frame}
+    \frametitle{Premier script de tests}
+    const1 = 100;\\
+    const2 = 200;\\
+    ...\\
+    \bigskip
+    foo x = x + const1 * const2 - ...\\
+    \bigskip
+    La fonction foo est ensuite appelé récursivement un très grand nombre de fois. Ce script permet de vérifier que les
+    deux fonctions bien ensemble puisque les constantes sont tous propagés dans le corps de la fonction puis ils sont
+    foldés ce qui fait que la fonction optimisé ne fait qu'une addition.
 
-\begin{frame}{Performances}
-  Tableau des performances
+\end{frame}
+%---------------------------------------------------------------
+\begin{frame}
+    \frametitle{Deuxième script de tests}
+    foo : Int -$>$ Int;\\
+    foo x = case true
+        $|$ true =$>$ x + 0 - 4 + 3 ...\\
+    \bigskip
+    Encore une fois cette fonction est appelée récursivement un très grand
+    nombre de fois.
+
+\end{frame}
+%---------------------------------------------------------------
+\subsection{Conclusion}
+%---------------------------------------------------------------
+\begin{frame}
+    \frametitle{Plans futurs}
+
+    % TODO make this bullet point
+    Si nous avions le privilège de continuer à travailler sur ce projet nous
+    ajouterions le inlining parmi les optimisations. Pour ce faire il faudrait
+    modifier la fonction qui fait la propagation de constantes afin de faire
+    que lorsqu'on fait on reçoit une expression de type appel de fonction alors
+    on cherche dans le contexte si on a une variable avec une valeur de type 
+    EN.Closure et si c'est le cas on retourne le body de cette fermeture avec
+    son paramètre remplacé par l'argument donné à l'appel de fonction.\\
+    \bigskip
+    Il faudrait faire attention à comment gérer la récursion.
 \end{frame}
 
 \end{document} 
