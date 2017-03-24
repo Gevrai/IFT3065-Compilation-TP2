@@ -188,7 +188,7 @@ Autres opérations
   \begin{itemize}
   \item Elexp.Case(l, e, branches, default)
     \\ $\Rightarrow$ Elexp.Case(l, cstfld e, cstfld branches, cstfld default)
-  \item Elexp.Lambda(name, e) $\Rightarrow$ Elexp.Lambda(name, cstfld e)
+  \item Elexp.Lambda(name, e) \\ $\Rightarrow$ Elexp.Lambda(name, cstfld e)
   \item Elexp.Let(l, nexprs, body) \\ $\Rightarrow$ Elexp.Let(l, cstfld nexprs, cstfld body)
   \end{itemize}
 \pause
@@ -279,35 +279,8 @@ $y = 1 + 2;$\\
     de la fonction sur le body de la fonction ou du let.
 \end{frame}
 %---------------------------------------------------------------
+\section{Résultats}
 \subsection{Tests de performance}
-%---------------------------------------------------------------
-\begin{frame}
-    \frametitle{Premier script de tests}
-    const1 = 100; const2 = 200; const3 = 200; ...\\
-    foo x = x + const1 * const2 - const3 / ...\\
-    \bigskip
-    \begin{itemize}
-      \item foo appelé 10000 fois
-      \item 24 constantes définies et utilisés pour le calcul de foo
-      \item Test principalement la propagation de constantes, mais aussi la
-        combinaison des optimisations
-    \end{itemize}
-
-    \begin{table}
-      \begin{tabular}{l l l}
-        \toprule
-        \textbf{Optimisation} & \textbf{Temps (s)} & \textbf{Pourcentage d'amélioration}\\
-        \midrule
-        Aucune & 0.54 & - \\
-        Constant Folding & 0.54 & 0\% \\
-        Constant Propagation & 0.444 & 18\% \\
-        Les deux & 0.26 & 52\% \\
-        \bottomrule
-      \end{tabular}
-      \caption{Résultat des tests sur le script 1}
-    \end{table}
-
-\end{frame}
 %---------------------------------------------------------------
 \begin{frame}
     \frametitle{Deuxième script de tests}
@@ -316,14 +289,15 @@ $y = 1 + 2;$\\
         $|$ true =$>$ x + 0 - 4 + 3 ...\\
     \bigskip
     \begin{itemize}
-      \item foo appelé 10000 fois
+      \item Temp moyen sur 10 tests avec foo appelé 10000 fois
+      \item Chaque cas de base sur entiers est présent
       \item Test le folding de constantes, ainsi que le précalcul du \emph{'case'}
     \end{itemize}
 
     \begin{table}
       \begin{tabular}{l l l}
         \toprule
-        \textbf{Optimisation} & \textbf{Temps (s)} & \textbf{Pourcentage d'amélioration}\\
+        \textbf{Optimisation} & \textbf{Temp moyen (s)} & \textbf{Gain de performance}\\
         \midrule
         Aucune & 0.64 & - \\
         Constant Folding & 0.43 & 33\% \\
@@ -333,24 +307,55 @@ $y = 1 + 2;$\\
       \end{tabular}
       \caption{Résultat des tests sur le script 2}
     \end{table}
-
 \end{frame}
 %---------------------------------------------------------------
-\subsection{Conclusion}
+\begin{frame}
+    \frametitle{Premier script de tests}
+    const1 = 100; const2 = 200; const3 = 200; ...\\
+    foo x = x + const1 * const2 - const3 / ...\\
+    \bigskip
+    \begin{itemize}
+      \item Temp moyen sur 10 tests avec foo appelé 10000 fois
+      \item 24 constantes définies et utilisés pour le calcul de foo
+      \item Test principalement la propagation de constantes, mais aussi la
+        combinaison des optimisations
+    \end{itemize}
+
+    \begin{table}
+      \begin{tabular}{l l l}
+        \toprule
+        \textbf{Optimisation} & \textbf{Temp moyen (s)} & \textbf{Gain de performance}\\
+        \midrule
+        Aucune & 0.54 & - \\
+        Constant Folding & 0.54 & 0\% \\
+        Constant Propagation & 0.444 & 18\% \\
+        Les deux & 0.26 & 52\% \\
+        \bottomrule
+      \end{tabular}
+      \caption{Résultat des tests sur le script 1}
+    \end{table}
+\end{frame}
+%---------------------------------------------------------------
+\section{Conclusion}
 %---------------------------------------------------------------
 \begin{frame}
-    \frametitle{Plans futurs}
+\frametitle{Plans futurs}
 
-    % TODO make this bullet point
-    Si nous avions le privilège de continuer à travailler sur ce projet nous
-    ajouterions le inlining parmi les optimisations. Pour ce faire il faudrait
-    modifier la fonction qui fait la propagation de constantes afin de faire
-    que lorsqu'on fait on reçoit une expression de type appel de fonction alors
-    on cherche dans le contexte si on a une variable avec une valeur de type 
-    EN.Closure et si c'est le cas on retourne le body de cette fermeture avec
-    son paramètre remplacé par l'argument donné à l'appel de fonction.\\
+  \begin{itemize}
+    \item Élimination de code mort
+      \begin{itemize}
+        \item 'Case' déjà entamé
+        \item Potentiel accru après les optimisations déjà implémentées
+      \end{itemize}
     \bigskip
-    Il faudrait faire attention à comment gérer la récursion.
+    \pause
+    \item Inlining de fonctions
+      \begin{itemize}
+        \item Extension de la propagation de constantes
+        \item Spécialisation en place grâce aux autres optimisations
+        \item Attention au peeling (récursion) et explosion de code
+      \end{itemize}
+  \end{itemize}
 \end{frame}
 
 \end{document} 
