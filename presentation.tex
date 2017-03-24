@@ -283,15 +283,28 @@ $y = 1 + 2;$\\
 %---------------------------------------------------------------
 \begin{frame}
     \frametitle{Premier script de tests}
-    const1 = 100;\\
-    const2 = 200;\\
-    ...\\
+    const1 = 100; const2 = 200; const3 = 200; ...\\
+    foo x = x + const1 * const2 - const3 / ...\\
     \bigskip
-    foo x = x + const1 * const2 - ...\\
-    \bigskip
-    La fonction foo est ensuite appelé récursivement un très grand nombre de fois. Ce script permet de vérifier que les
-    deux fonctions bien ensemble puisque les constantes sont tous propagés dans le corps de la fonction puis ils sont
-    foldés ce qui fait que la fonction optimisé ne fait qu'une addition.
+    \begin{itemize}
+      \item foo appelé 10000 fois
+      \item Test principalement la propagation de constantes, mais aussi la
+        combinaison des optimisations
+    \end{itemize}
+
+    \begin{table}
+      \begin{tabular}{l l l}
+        \toprule
+        \textbf{Optimisation} & \textbf{Temps (s)} & \textbf{Pourcentage d'amélioration}\\
+        \midrule
+        Aucune & 0.0003262 & 0.562 \\
+        Constant Folding & 0.0015681 & 0.910 \\
+        Constant Propagation & 0.0009271 & 0.296 \\
+        Les deux & 0.0009271 & 0.296 \\
+        \bottomrule
+      \end{tabular}
+      \caption{Résultat des tests sur le script 1}
+    \end{table}
 
 \end{frame}
 %---------------------------------------------------------------
@@ -301,8 +314,24 @@ $y = 1 + 2;$\\
     foo x = case true
         $|$ true =$>$ x + 0 - 4 + 3 ...\\
     \bigskip
-    Encore une fois cette fonction est appelée récursivement un très grand
-    nombre de fois.
+    \begin{itemize}
+      \item foo appelé 10000 fois
+      \item Test le folding de constantes, ainsi que le précalcul du \emph{'case'}
+    \end{itemize}
+
+    \begin{table}
+      \begin{tabular}{l l l}
+        \toprule
+        \textbf{Optimisation} & \textbf{Temps (s)} & \textbf{Pourcentage d'amélioration}\\
+        \midrule
+        Aucune & 0.0003262 & 0.562 \\
+        Constant Folding & 0.0015681 & 0.910 \\
+        Constant Propagation & 0.0009271 & 0.296 \\
+        Les deux & 0.0009271 & 0.296 \\
+        \bottomrule
+      \end{tabular}
+      \caption{Résultat des tests sur le script 2}
+    \end{table}
 
 \end{frame}
 %---------------------------------------------------------------
