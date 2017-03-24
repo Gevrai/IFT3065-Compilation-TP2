@@ -185,6 +185,17 @@ Opérations sur les chaînes de caractères
 
 \begin{frame}
 \frametitle{Autres types d'elexp}
+le cas du Case :\\
+\bigskip
+    (case true
+    $|$ true $=>$ e1 
+    $|$ false $=>$ e2) $\rightarrow$ e1\\
+\bigskip
+C'est l'équivalent dans typer du cas vu en cours \\
+    \textbf{if} true \textbf{then} e1 \textbf{else} e2 $\rightarrow$ e1\\
+Car typer n'as pas encore de if.\\
+    \bigskip
+    Très utile si on applique le \textbf{case} d'une variable booléenne qui à été propagé
 \end{frame}
 
 \subsection{Propagation de constantes} 
@@ -222,6 +233,47 @@ $y = 1 + 2;$\\
     \bigskip
     Solution : il faut enlever du contexte la paire de x avec la référence vers sa valeur lorsqu'on fait un appel récursive
     de la fonction sur le body de la fonction ou du let.
+\end{frame}
+
+\subsection{Tests de performance}
+\begin{frame}
+    \frametitle{Premier script de tests}
+    const1 = 100;\\
+    const2 = 200;\\
+    ...\\
+    \bigskip
+    foo x = x + const1 * const2 - ...\\
+    \bigskip
+    La fonction foo est ensuite appelé récursivement un très grand nombre de fois. Ce script permet de vérifier que les
+    deux fonctions bien ensemble puisque les constantes sont tous propagés dans le corps de la fonction puis ils sont
+    foldés ce qui fait que la fonction optimisé ne fait qu'une addition.
+
+\end{frame}
+
+\begin{frame}
+    \frametitle{Deuxième script de tests}
+    foo : Int -$>$ Int;\\
+    foo x = case true
+        $|$ true =$>$ x + 0 - 4 + 3 ...\\
+    \bigskip
+    Encore une fois cette fonction est appelé récursivement un très grand
+    nombre de fois.
+
+\end{frame}
+
+\subsection{Conclusion}
+
+\begin{frame}
+    \frametitle{Plans futurs}
+    Si nous avions le privilège de continuer à travailler sur ce projet nous
+    ajouterions le inlining parmi les optimisations. Pour ce faire il faudrait
+    modifier la fonction qui fait la propagation de constantes afin de faire
+    que lorsqu'on fait on reçoit une expression de type appel de fonction alors
+    on cherche dans le contexte si on a une variable avec une valeur de type 
+    EN.Closure et si c'est le cas on retourne le body de cette fermeture avec
+    son paramètre remplacé par l'argument donné à l'appel de fonction.\\
+    \bigskip
+    Il faudrait faire attention à comment gérer la récursion.
 \end{frame}
 
 \end{document} 
