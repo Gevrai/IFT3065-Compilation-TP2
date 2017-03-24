@@ -288,6 +288,7 @@ $y = 1 + 2;$\\
     \bigskip
     \begin{itemize}
       \item foo appelé 10000 fois
+      \item 24 constantes définies et utilisés pour le calcul de foo
       \item Test principalement la propagation de constantes, mais aussi la
         combinaison des optimisations
     \end{itemize}
@@ -297,10 +298,10 @@ $y = 1 + 2;$\\
         \toprule
         \textbf{Optimisation} & \textbf{Temps (s)} & \textbf{Pourcentage d'amélioration}\\
         \midrule
-        Aucune & 0.0003262 & 0.562 \\
-        Constant Folding & 0.0015681 & 0.910 \\
-        Constant Propagation & 0.0009271 & 0.296 \\
-        Les deux & 0.0009271 & 0.296 \\
+        Aucune & 0.54 & - \\
+        Constant Folding & 0.54 & 0\% \\
+        Constant Propagation & 0.444 & 18\% \\
+        Les deux & 0.26 & 52\% \\
         \bottomrule
       \end{tabular}
       \caption{Résultat des tests sur le script 1}
@@ -324,10 +325,10 @@ $y = 1 + 2;$\\
         \toprule
         \textbf{Optimisation} & \textbf{Temps (s)} & \textbf{Pourcentage d'amélioration}\\
         \midrule
-        Aucune & 0.0003262 & 0.562 \\
-        Constant Folding & 0.0015681 & 0.910 \\
-        Constant Propagation & 0.0009271 & 0.296 \\
-        Les deux & 0.0009271 & 0.296 \\
+        Aucune & 0.64 & - \\
+        Constant Folding & 0.43 & 33\% \\
+        Constant Propagation & 0.64 & 0\% \\
+        Les deux & 0.43 & 33\% \\
         \bottomrule
       \end{tabular}
       \caption{Résultat des tests sur le script 2}
