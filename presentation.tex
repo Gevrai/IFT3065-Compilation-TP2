@@ -187,4 +187,41 @@ Opérations sur les chaînes de caractères
 \frametitle{Autres types d'elexp}
 \end{frame}
 
+\subsection{Propagation de constantes} 
+
+\begin{frame}
+\frametitle{Propagation de constantes}
+Comment faire la propagation de constantes?\\
+Par exemple sur le code suivant:\\
+$x = 1;$\\
+\bigskip
+$y = x + 2;$\\
+\bigskip
+on veut que la deuxième expression devienne \\
+$y = 1 + 2;$\\
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Solution}
+    \begin{itemize}
+        \item Lorsqu'on a une expression de type variable on cherche dans le contexte si cette variable a été définie.
+        \item Si oui alors on vérifie la valeur associé à cette variable et on retourne une expression correspondante à cette valeur.
+        \item sinon on retourne l'expression tel quelle.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Quelques cas problématiques}
+    x = 1; \\
+    \bigskip
+    f : Int -$>$ Int;\\
+    f x = x * x;\\
+    \bigskip
+    g = let x = 3 in x * 2;\\
+    \bigskip
+    Solution : il faut enlever du contexte la paire de x avec la référence vers sa valeur lorsqu'on fait un appel récursive
+    de la fonction sur le body de la fonction ou du let.
+\end{frame}
+
 \end{document} 
