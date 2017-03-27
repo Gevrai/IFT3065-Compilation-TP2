@@ -123,20 +123,20 @@ Université de Montréal \\ % Your institution for the title page
 
 Initialement: 
   \begin{itemize}
-    \item Inlining de fonction: Nécessite une certaine forme d'analyse du programme
-    \item Elimination de code mort: Problématique avec les effets de bords
+  \item \emph{Inlining} de fonction: Nécessite une certaine forme d'analyse du programme
+    \item Élimination de code mort: Problématique avec les effets de bords
   \end{itemize}
  
 \pause
 
 Choix finaux:
   \begin{itemize}
-    \item Constant folding: De base, ouvre plusieurs possibilités pour d'autres optimisations
-    \item Propagation de constantes: Language purement fonctionnel, on ne
+    \item \emph{Constant folding}: De base, ouvre plusieurs possibilités pour d'autres optimisations
+    \item Propagation de constantes: Langage purement fonctionnel, on ne
       travaille d'une certaine façon que sur des constantes (immuables)
   \end{itemize}
 
-  Constant folding et propagation de constantes se complémentent extrêmement bien
+  \emph{Constant folding} et propagation de constantes se complémentent extrêmement bien
 \end{frame}
 
 %---------------------------------------------------------------
@@ -163,11 +163,12 @@ Précalcul d'expressions
     \item $ 2 - 2 \Rightarrow 0 $
     \item $ 2 * 2 \Rightarrow 4 $
     \item $ 2 / 2 \Rightarrow 1 $
-    \item $ Int\_>$ 1 2 $\Rightarrow$ \emph{false}
-    \item $ Int\_<$ 1 2 $\Rightarrow$ \emph{true}
-    \item $ Int\_eq$ 1 2 $\Rightarrow$ \emph{false}
-    \item $ Int\_>=$ 1 2 $\Rightarrow$ \emph{false}
-    \item $ Int\_<=$ 1 2 $\Rightarrow$ \emph{true}
+    \columnbreak
+    \item  \texttt{Int\_>} 1 2 $\Rightarrow$ \emph{false}
+    \item  \texttt{Int\_<} 1 2 $\Rightarrow$ \emph{true}
+    \item  \texttt{Int\_eq} 1 2 $\Rightarrow$ \emph{false}
+    \item  \texttt{Int\_>=} 1 2 $\Rightarrow$ \emph{false}
+    \item  \texttt{Int\_<=} 1 2 $\Rightarrow$ \emph{true}
   \end{itemize}
   \end{multicols}
 
@@ -227,7 +228,7 @@ N'affecte que les feuilles!
     \item Avantages
       \begin{itemize}
         \item Complexité algorithmique en pire cas de O($2n$)
-        \item \emph{optimize} peut rappeler la propagation de constante plus
+        \item \emph{optimize} peut rappeler la propagation de constantes plus
           efficacement (\emph{fold} complet)
       \end{itemize}
   \pause
@@ -248,12 +249,12 @@ N'affecte que les feuilles!
 \frametitle{Propagation de constantes}
 Comment faire la propagation de constantes?\\
 Par exemple sur le code suivant:\\
-$x = 1;$\\
 \bigskip
-$y = x + 2;$\\
+\quad\texttt{x = 1;}\\
+\quad\texttt{y = x + 2;}\\
 \bigskip
 on veut que la deuxième expression devienne \\
-$y = 1 + 2;$\\
+\quad\texttt{y = 1 + 2;}\\
 
 \end{frame}
 %---------------------------------------------------------------
@@ -261,43 +262,42 @@ $y = 1 + 2;$\\
 \frametitle{Solution}
     \begin{itemize}
         \item Lorsqu'on a une expression de type variable on cherche dans le contexte si cette variable a été définie.
-        \item Si oui alors on vérifie la valeur associé à cette variable et on retourne une expression correspondante à cette valeur.
-        \item sinon on retourne l'expression tel quelle.
+        \item Si oui, alors on vérifie la valeur associée à cette variable et on retourne une expression correspondante à cette valeur.
+        \item Sinon, on retourne l'expression telle quelle.
     \end{itemize}
 \end{frame}
 %---------------------------------------------------------------
 \begin{frame}
     \frametitle{Quelques cas problématiques}
-    x = 1; \\
+    \texttt{x = 1;} \\
     \bigskip
-    f : Int -$>$ Int;\\
-    f x = x * x;\\
+    \texttt{f : Int $\rightarrow$ Int;\\
+    f x = x * x;}\\
     \bigskip
-    g = let x = 3 in x * 2;\\
+    \texttt{g = let x = 3 in x * 2;}\\
     \bigskip
-    Solution : il faut enlever du contexte la paire de x avec la référence vers sa valeur lorsqu'on fait un appel récursive
-    de la fonction sur le body de la fonction ou du let.
+    Solution : il faut enlever du contexte la paire de x avec la référence vers sa valeur lorsqu'on fait un appel récursif de la fonction sur le \emph{body} de la fonction ou du \emph{let}.
 \end{frame}
 %---------------------------------------------------------------
 \section{Résultats}
 \subsection{Tests de performance}
 %---------------------------------------------------------------
 \begin{frame}
-    \frametitle{Deuxième script de tests}
-    foo : Int -$>$ Int;\\
+    \frametitle{Premier script de tests}
+    \texttt{foo : Int $\rightarrow$ Int;\\
     foo x = case true
-        $|$ true =$>$ x + 0 - 4 + 3 ...\\
+    | true => x + 0 - 4 + 3 ...}\\
     \bigskip
     \begin{itemize}
-      \item Temp moyen sur 10 tests avec foo appelé 10000 fois
+      \item Temps moyen sur 10 tests avec \emph{foo} appelé 10000 fois
       \item Chaque cas de base sur entiers est présent
-      \item Test le folding de constantes, ainsi que le précalcul du \emph{'case'}
+      \item Teste le \emph{folding} de constantes, ainsi que le précalcul du \emph{'case'}
     \end{itemize}
 
     \begin{table}
       \begin{tabular}{l l l}
         \toprule
-        \textbf{Optimisation} & \textbf{Temp moyen (s)} & \textbf{Gain de performance}\\
+        \textbf{Optimisation} & \textbf{Temps moyen (s)} & \textbf{Gain de performance}\\
         \midrule
         Aucune & 0.64 & - \\
         Constant Folding & 0.43 & 33\% \\
@@ -305,26 +305,26 @@ $y = 1 + 2;$\\
         Les deux & 0.43 & 33\% \\
         \bottomrule
       \end{tabular}
-      \caption{Résultat des tests sur le script 2}
+      \caption{Résultats des tests sur le script 1}
     \end{table}
 \end{frame}
 %---------------------------------------------------------------
 \begin{frame}
-    \frametitle{Premier script de tests}
-    const1 = 100; const2 = 200; const3 = 200; ...\\
-    foo x = x + const1 * const2 - const3 / ...\\
+    \frametitle{Deuxième script de tests}
+    \texttt{const1 = 100; const2 = 200; const3 = 200; ...\\
+    foo x = x + const1 * const2 - const3 ...}\\
     \bigskip
     \begin{itemize}
-      \item Temp moyen sur 10 tests avec foo appelé 10000 fois
-      \item 24 constantes définies et utilisés pour le calcul de foo
-      \item Test principalement la propagation de constantes, mais aussi la
+      \item Temps moyen sur 10 tests avec foo appelé 10000 fois
+      \item 24 constantes définies et utilisées pour le calcul de \emph{foo}
+      \item Teste principalement la propagation de constantes, mais aussi la
         combinaison des optimisations
     \end{itemize}
 
     \begin{table}
       \begin{tabular}{l l l}
         \toprule
-        \textbf{Optimisation} & \textbf{Temp moyen (s)} & \textbf{Gain de performance}\\
+        \textbf{Optimisation} & \textbf{Temps moyen (s)} & \textbf{Gain de performance}\\
         \midrule
         Aucune & 0.54 & - \\
         Constant Folding & 0.54 & 0\% \\
@@ -332,7 +332,7 @@ $y = 1 + 2;$\\
         Les deux & 0.26 & 52\% \\
         \bottomrule
       \end{tabular}
-      \caption{Résultat des tests sur le script 1}
+      \caption{Résultats des tests sur le script 2}
     \end{table}
 \end{frame}
 %---------------------------------------------------------------
@@ -344,16 +344,16 @@ $y = 1 + 2;$\\
   \begin{itemize}
     \item Élimination de code mort
       \begin{itemize}
-        \item 'Case' déjà entamé
+      \item \emph{'Case'} déjà entamé
         \item Potentiel accru après les optimisations déjà implémentées
       \end{itemize}
     \bigskip
     \pause
-    \item Inlining de fonctions
+    \item \emph{Inlining} de fonctions
       \begin{itemize}
         \item Extension de la propagation de constantes
         \item Spécialisation en place grâce aux autres optimisations
-        \item Attention au peeling (récursion) et explosion de code
+        \item Attention au \emph{peeling} (récursion) et explosion de code
       \end{itemize}
   \end{itemize}
 \end{frame}
