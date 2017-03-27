@@ -268,6 +268,27 @@ on veut que la deuxième expression devienne \\
 \end{frame}
 %---------------------------------------------------------------
 \begin{frame}
+\frametitle{Solution}
+    \begin{itemize}
+        \item Elexp.Var((l, "x"), dbi)
+        \item dans le context on a (Some "x", ref \{content = EN.Vint i\})
+        $\Rightarrow$ Elexp.Imm (Sexp.Integer (l, i))
+    \end{itemize}
+
+\end{frame}
+%---------------------------------------------------------------
+\begin{frame}
+\frametitle{Types supporté par la propagation}
+    \begin{itemize}
+        \item entiers
+        \item float
+        \item string
+        \item booléens
+    \end{itemize}
+
+\end{frame}
+%---------------------------------------------------------------
+\begin{frame}
     \frametitle{Quelques cas problématiques}
     \texttt{x = 1;} \\
     \bigskip
